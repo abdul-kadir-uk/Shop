@@ -28,3 +28,16 @@ Thumbs.db
 
 # Misc
 coverage/
+
+# Uploads (if generated at runtime)
+backend/uploads/
+
+# Build artifacts
+backend/dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code settings
+.vscode/
