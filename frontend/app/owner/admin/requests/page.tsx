@@ -47,16 +47,18 @@ export default function ApprovalRequestsPage() {
       {/* Heading */}
 
       <div>
-        <h1 className="text-3xl font-bold text-gray-800">Approval Requests</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+          Approval Requests
+        </h1>
 
-        <p className="text-gray-500 mt-1">
+        <p className="text-gray-500 mt-1 text-sm md:text-base">
           Review seller and delivery partner registration requests.
         </p>
       </div>
 
       {/* Search */}
 
-      <div className="bg-white rounded-xl shadow p-5">
+      <div className="bg-white rounded-xl shadow p-4 md:p-5">
         <input
           type="text"
           placeholder="Search request..."
@@ -68,53 +70,90 @@ export default function ApprovalRequestsPage() {
 
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="min-w-full">
             <thead className="bg-gray-100">
               <tr>
-                <th className="text-left px-6 py-4">Type</th>
-                <th className="text-left px-6 py-4">Name / Shop</th>
-                <th className="text-left px-6 py-4">Owner</th>
-                <th className="text-left px-6 py-4">Email</th>
-                <th className="text-left px-6 py-4">Mobile</th>
-                <th className="text-left px-6 py-4">Submitted</th>
-                <th className="text-left px-6 py-4">Status</th>
-                <th className="text-center px-6 py-4">Actions</th>
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Type
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Name / Shop
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Owner
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Email
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Mobile
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Submitted
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Status
+                </th>
+
+                <th className="text-center px-4 md:px-6 py-4 whitespace-nowrap">
+                  Actions
+                </th>
               </tr>
             </thead>
 
             <tbody>
               {requests.map((request) => (
                 <tr key={request.id} className="border-t hover:bg-gray-50">
-                  <td className="px-6 py-4">{request.type}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {request.type}
+                  </td>
 
-                  <td className="px-6 py-4 font-medium">{request.name}</td>
+                  <td className="px-4 md:px-6 py-4 font-medium whitespace-nowrap">
+                    {request.name}
+                  </td>
 
-                  <td className="px-6 py-4">{request.owner}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {request.owner}
+                  </td>
 
-                  <td className="px-6 py-4">{request.email}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {request.email}
+                  </td>
 
-                  <td className="px-6 py-4">{request.mobile}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {request.mobile}
+                  </td>
 
-                  <td className="px-6 py-4">{request.submittedOn}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {request.submittedOn}
+                  </td>
 
-                  <td className="px-6 py-4">
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                     <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">
                       {request.status}
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 text-center space-x-2">
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-                      View
-                    </button>
+                  <td className="px-4 md:px-6 py-4">
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <button className="bg-blue-600 hover:bg-blue-700 transition text-white px-4 py-2 rounded-lg text-sm">
+                        View
+                      </button>
 
-                    <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
-                      Approve
-                    </button>
+                      <button className="bg-green-600 hover:bg-green-700 transition text-white px-4 py-2 rounded-lg text-sm">
+                        Approve
+                      </button>
 
-                    <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
-                      Reject
-                    </button>
+                      <button className="bg-red-600 hover:bg-red-700 transition text-white px-4 py-2 rounded-lg text-sm">
+                        Reject
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

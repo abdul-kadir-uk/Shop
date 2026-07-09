@@ -52,7 +52,7 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["customer", "seller", "delivery"],
+      enum: ["customer", "seller", "delivery", "admin"],
       required: true,
     },
 
@@ -62,6 +62,10 @@ const userSchema = new mongoose.Schema(
     },
 
     isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+    isSystemAdmin: {
       type: Boolean,
       default: false,
     },

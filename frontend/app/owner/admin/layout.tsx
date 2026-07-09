@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { Menu, X } from "lucide-react";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -11,6 +12,51 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const verifyAdmin = async () => {
+      const token = localStorage.getItem("adminToken");
+
+      if (!token) {
+        router.replace("/owner/login");
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/admin/profile",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          localStorage.removeItem("adminToken");
+          localStorage.removeItem("admin");
+
+          router.replace("/owner/login");
+          return;
+        }
+
+        setCheckingAuth(false);
+      } catch (error) {
+        console.error(error);
+
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("admin");
+
+        router.replace("/owner/login");
+      }
+    };
+
+    verifyAdmin();
+  }, [router]);
 
   const menuItems = [
     {
@@ -43,26 +89,90 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem("adminToken");
+  const handleLogout = async () => {
+    const token = localStorage.getItem("adminToken");
 
-    router.push("/owner/login");
+    try {
+      if (token) {
+        await fetch("http://localhost:5000/api/admin/logout", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("admin");
+
+    router.replace("/owner/login");
   };
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <h2 className="text-lg md:text-xl font-semibold">
+          Verifying Authentication...
+        </h2>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100">
+      {/* Mobile Overlay */}
+
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
 
-      <aside className="w-64 bg-gray-900 text-white flex flex-col">
-        <div className="border-b border-gray-700 px-6 py-5">
+      <aside
+        className={`
+          fixed top-0 left-0 z-50
+          h-screen
+          w-64
+          bg-gray-900
+          text-white
+          flex
+          flex-col
+          transform
+          transition-transform
+          duration-300
+          ease-in-out
+
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+
+          lg:translate-x-0
+          lg:static
+          lg:flex
+        `}
+      >
+        {/* Logo */}
+
+        <div className="flex items-center justify-between border-b border-gray-700 px-6 py-5">
           <h1 className="text-2xl font-bold">Admin Panel</h1>
+
+          <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
+            <X size={24} />
+          </button>
         </div>
 
-        <nav className="flex-1 mt-4">
+        {/* Menu */}
+
+        <nav className="flex-1 mt-4 overflow-y-auto">
           {menuItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setSidebarOpen(false)}
               className={`block px-6 py-3 transition ${
                 pathname === item.href ? "bg-green-600" : "hover:bg-gray-800"
               }`}
@@ -72,32 +182,44 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           ))}
         </nav>
 
-        <div className="p-5 border-t border-gray-700">
+        {/* Logout */}
+
+        <div className="border-t border-gray-700 p-5">
           <button
             onClick={handleLogout}
-            className="w-full bg-red-600 hover:bg-red-700 py-2 rounded-lg font-medium"
+            className="w-full bg-red-600 hover:bg-red-700 transition py-2 rounded-lg font-medium"
           >
             Logout
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Area */}
 
-      <div className="flex-1 flex flex-col">
-        {/* Navbar */}
+      <div className="lg:ml-64 min-h-screen flex flex-col">
+        {/* Header */}
 
-        <header className="bg-white shadow px-8 py-5 flex justify-between items-center">
-          <h2 className="text-2xl font-semibold text-gray-800">
-            Owner Dashboard
-          </h2>
+        <header className="sticky top-0 z-30 bg-white shadow-sm border-b px-4 md:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+              <Menu size={26} />
+            </button>
 
-          <div className="text-gray-600">Welcome, Admin</div>
+            <h2 className="text-xl md:text-2xl font-semibold text-gray-800">
+              Owner Dashboard
+            </h2>
+          </div>
+
+          <div className="hidden sm:block text-gray-600 font-medium">
+            Welcome, Admin
+          </div>
         </header>
 
-        {/* Page Content */}
+        {/* Content */}
 
-        <main className="flex-1 p-8 overflow-auto">{children}</main>
+        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-auto">
+          {children}
+        </main>
       </div>
     </div>
   );

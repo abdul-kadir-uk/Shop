@@ -66,14 +66,16 @@ export default function OrdersPage() {
       {/* Heading */}
 
       <div>
-        <h1 className="text-3xl font-bold text-gray-800">Orders</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Orders</h1>
 
-        <p className="text-gray-500 mt-1">Monitor all marketplace orders.</p>
+        <p className="text-gray-500 mt-1 text-sm md:text-base">
+          Monitor all marketplace orders.
+        </p>
       </div>
 
       {/* Search */}
 
-      <div className="bg-white rounded-xl shadow p-5">
+      <div className="bg-white rounded-xl shadow p-4 md:p-5">
         <input
           type="text"
           placeholder="Search by Order ID, Customer or Seller..."
@@ -85,37 +87,75 @@ export default function OrdersPage() {
 
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="min-w-full">
             <thead className="bg-gray-100">
               <tr>
-                <th className="text-left px-6 py-4">Order ID</th>
-                <th className="text-left px-6 py-4">Customer</th>
-                <th className="text-left px-6 py-4">Seller</th>
-                <th className="text-left px-6 py-4">Delivery Partner</th>
-                <th className="text-left px-6 py-4">Amount</th>
-                <th className="text-left px-6 py-4">Payment</th>
-                <th className="text-left px-6 py-4">Status</th>
-                <th className="text-left px-6 py-4">Date</th>
-                <th className="text-center px-6 py-4">Action</th>
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Order ID
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Customer
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Seller
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Delivery Partner
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Amount
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Payment
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Status
+                </th>
+
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Date
+                </th>
+
+                <th className="text-center px-4 md:px-6 py-4 whitespace-nowrap">
+                  Action
+                </th>
               </tr>
             </thead>
 
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id} className="border-t hover:bg-gray-50">
-                  <td className="px-6 py-4 font-semibold">{order.id}</td>
+                  <td className="px-4 md:px-6 py-4 font-semibold whitespace-nowrap">
+                    {order.id}
+                  </td>
 
-                  <td className="px-6 py-4">{order.customer}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {order.customer}
+                  </td>
 
-                  <td className="px-6 py-4">{order.seller}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {order.seller}
+                  </td>
 
-                  <td className="px-6 py-4">{order.deliveryPartner}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {order.deliveryPartner}
+                  </td>
 
-                  <td className="px-6 py-4 font-medium">{order.amount}</td>
+                  <td className="px-4 md:px-6 py-4 font-medium whitespace-nowrap">
+                    {order.amount}
+                  </td>
 
-                  <td className="px-6 py-4">{order.payment}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {order.payment}
+                  </td>
 
-                  <td className="px-6 py-4">
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
                         order.status,
@@ -125,12 +165,16 @@ export default function OrdersPage() {
                     </span>
                   </td>
 
-                  <td className="px-6 py-4">{order.date}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {order.date}
+                  </td>
 
-                  <td className="px-6 py-4 text-center">
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-                      View
-                    </button>
+                  <td className="px-4 md:px-6 py-4">
+                    <div className="flex justify-center">
+                      <button className="bg-blue-600 hover:bg-blue-700 transition text-white px-4 py-2 rounded-lg text-sm">
+                        View
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

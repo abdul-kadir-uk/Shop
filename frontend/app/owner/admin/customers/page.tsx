@@ -38,21 +38,23 @@ export default function CustomersPage() {
     <div className="space-y-6">
       {/* Heading */}
 
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Customers</h1>
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+          Customers
+        </h1>
 
-          <p className="text-gray-500 mt-1">Manage all registered customers.</p>
-        </div>
+        <p className="text-gray-500 mt-1 text-sm md:text-base">
+          Manage all registered customers.
+        </p>
       </div>
 
       {/* Search */}
 
-      <div className="bg-white rounded-xl shadow p-5">
+      <div className="bg-white rounded-xl shadow p-4 md:p-5">
         <input
           type="text"
           placeholder="Search customer..."
-          className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-600 outline-none"
+          className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-green-600"
         />
       </div>
 
@@ -60,35 +62,55 @@ export default function CustomersPage() {
 
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="min-w-full">
             <thead className="bg-gray-100">
               <tr>
-                <th className="text-left px-6 py-4">Name</th>
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Name
+                </th>
 
-                <th className="text-left px-6 py-4">Email</th>
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Email
+                </th>
 
-                <th className="text-left px-6 py-4">Mobile</th>
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Mobile
+                </th>
 
-                <th className="text-left px-6 py-4">Joined</th>
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Joined
+                </th>
 
-                <th className="text-left px-6 py-4">Status</th>
+                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                  Status
+                </th>
 
-                <th className="text-center px-6 py-4">Action</th>
+                <th className="text-center px-4 md:px-6 py-4 whitespace-nowrap">
+                  Action
+                </th>
               </tr>
             </thead>
 
             <tbody>
               {customers.map((customer) => (
                 <tr key={customer.id} className="border-t hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium">{customer.name}</td>
+                  <td className="px-4 md:px-6 py-4 font-medium whitespace-nowrap">
+                    {customer.name}
+                  </td>
 
-                  <td className="px-6 py-4">{customer.email}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {customer.email}
+                  </td>
 
-                  <td className="px-6 py-4">{customer.mobile}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {customer.mobile}
+                  </td>
 
-                  <td className="px-6 py-4">{customer.joined}</td>
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                    {customer.joined}
+                  </td>
 
-                  <td className="px-6 py-4">
+                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-medium ${
                         customer.status === "Active"
@@ -100,14 +122,16 @@ export default function CustomersPage() {
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 text-center">
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg mr-2">
-                      View
-                    </button>
+                  <td className="px-4 md:px-6 py-4">
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition">
+                        View
+                      </button>
 
-                    <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
-                      Block
-                    </button>
+                      <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition">
+                        Block
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

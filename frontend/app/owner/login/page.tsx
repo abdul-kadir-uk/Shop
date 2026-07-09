@@ -1,8 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function OwnerLoginPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem("adminToken");
+
+    if (token) {
+      router.replace("/owner/admin");
+    }
+  }, [router]);
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -18,20 +29,57 @@ export default function OwnerLoginPage() {
     }));
   };
 
+  useEffect(() => {
+    const token = localStorage.getItem("adminToken");
+
+    if (!token) {
+      router.replace("/owner/login");
+      return;
+    }
+
+    setLoading(false);
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <h2 className="text-xl font-semibold">Loading...</h2>
+      </div>
+    );
+  }
+
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     setLoading(true);
 
     try {
-      // Backend integration will be added next
-      console.log(formData);
+      const response = await fetch("http://localhost:5000/api/admin/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
 
-      // Example:
-      // router.push("/owner/admin");
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Login failed");
+        return;
+      }
+
+      // Save token
+      localStorage.setItem("adminToken", data.token);
+
+      // Save admin info
+      localStorage.setItem("admin", JSON.stringify(data.admin));
+
+      // Redirect
+      router.push("/owner/admin");
     } catch (error) {
       console.error(error);
-      alert("Something went wrong.");
+      alert("Server error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -49,8 +97,6 @@ export default function OwnerLoginPage() {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-5">
-          {/* Email */}
-
           <div>
             <label className="block text-sm font-medium mb-2">
               Email Address
@@ -66,8 +112,6 @@ export default function OwnerLoginPage() {
               className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-green-600"
             />
           </div>
-
-          {/* Password */}
 
           <div>
             <label className="block text-sm font-medium mb-2">Password</label>
@@ -92,8 +136,6 @@ export default function OwnerLoginPage() {
               </button>
             </div>
           </div>
-
-          {/* Login Button */}
 
           <button
             type="submit"
