@@ -90,72 +90,50 @@ export default function OrdersPage() {
           <table className="min-w-full">
             <thead className="bg-gray-100">
               <tr>
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Order ID
-                </th>
+                <th className="text-left px-2 md:px-3 py-3 ">Order ID</th>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Customer
-                </th>
+                <th className="text-left px-2 md:px-3 py-3 ">Customer</th>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Seller
-                </th>
+                <th className="text-left px-2 md:px-3 py-3 ">Seller</th>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
+                <th className="text-left px-2 md:px-3 py-3 ">
                   Delivery Partner
                 </th>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Amount
-                </th>
+                <th className="text-left px-2 md:px-3 py-3 ">Amount</th>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Payment
-                </th>
+                <th className="text-left px-2 md:px-3 py-3 ">Payment</th>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Status
-                </th>
+                <th className="text-left px-2 md:px-3 py-3 ">Status</th>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Date
-                </th>
+                <th className="text-left px-2 md:px-3 py-3 ">Date</th>
 
-                <th className="text-center px-4 md:px-6 py-4 whitespace-nowrap">
-                  Action
-                </th>
+                <th className="text-center px-2 md:px-3 py-3 ">Action</th>
               </tr>
             </thead>
 
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 md:px-6 py-4 font-semibold whitespace-nowrap">
+                  <td className="px-2 md:px-3 py-3 font-semibold ">
                     {order.id}
                   </td>
 
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    {order.customer}
-                  </td>
+                  <td className="px-2 md:px-3 py-3 ">{order.customer}</td>
 
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    {order.seller}
-                  </td>
+                  <td className="px-2 md:px-3 py-3 ">{order.seller}</td>
 
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                  <td className="px-2 md:px-3 py-3 ">
                     {order.deliveryPartner}
                   </td>
 
-                  <td className="px-4 md:px-6 py-4 font-medium whitespace-nowrap">
+                  <td className="px-2 md:px-3 py-3 font-medium ">
                     {order.amount}
                   </td>
 
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    {order.payment}
-                  </td>
+                  <td className="px-2 md:px-3 py-3 ">{order.payment}</td>
 
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                  <td className="px-2 md:px-3 py-3 ">
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
                         order.status,
@@ -165,11 +143,9 @@ export default function OrdersPage() {
                     </span>
                   </td>
 
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    {order.date}
-                  </td>
+                  <td className="px-2 md:px-3 py-3 ">{order.date}</td>
 
-                  <td className="px-4 md:px-6 py-4">
+                  <td className="px-2 md:px-3 py-3">
                     <div className="flex justify-center">
                       <button className="bg-blue-600 hover:bg-blue-700 transition text-white px-4 py-2 rounded-lg text-sm">
                         View

@@ -1,3 +1,4 @@
+// admin/page.tsx
 export default function AdminDashboardPage() {
   const stats = [
     {

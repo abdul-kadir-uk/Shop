@@ -1,3 +1,4 @@
+// Layout.tsx a
 "use client";
 
 import Link from "next/link";
@@ -122,7 +123,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col lg:flex-row">
       {/* Mobile Overlay */}
 
       {sidebarOpen && (
@@ -152,7 +153,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           lg:translate-x-0
           lg:static
-          lg:flex
+          lg:shrink-0
         `}
       >
         {/* Logo */}
@@ -196,10 +197,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Area */}
 
-      <div className="lg:ml-64 min-h-screen flex flex-col">
+      <div className="flex-1 min-h-screen flex flex-col">
         {/* Header */}
 
-        <header className="sticky top-0 z-30 bg-white shadow-sm border-b px-4 md:px-8 py-4 flex items-center justify-between">
+        <header className=" bg-white shadow-sm border-b px-4 md:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button className="lg:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu size={26} />
