@@ -1,165 +1,72 @@
-export default function ApprovalRequestsPage() {
-  const requests = [
-    {
-      id: 1,
-      type: "Seller",
-      name: "Fresh Mart",
-      owner: "Amit Sharma",
-      email: "freshmart@gmail.com",
-      mobile: "9876543210",
-      submittedOn: "02 Jul 2026",
-      status: "Pending",
-    },
-    {
-      id: 2,
-      type: "Delivery Partner",
-      name: "Rahul Kumar",
-      owner: "-",
-      email: "rahul@gmail.com",
-      mobile: "9876543211",
-      submittedOn: "03 Jul 2026",
-      status: "Pending",
-    },
-    {
-      id: 3,
-      type: "Seller",
-      name: "Book World",
-      owner: "Neha Gupta",
-      email: "bookworld@gmail.com",
-      mobile: "9876543212",
-      submittedOn: "03 Jul 2026",
-      status: "Pending",
-    },
-    {
-      id: 4,
-      type: "Delivery Partner",
-      name: "Vikas Verma",
-      owner: "-",
-      email: "vikas@gmail.com",
-      mobile: "9876543213",
-      submittedOn: "04 Jul 2026",
-      status: "Pending",
-    },
-  ];
+"use client";
 
+import Link from "next/link";
+
+export default function RequestsPage() {
   return (
     <div className="space-y-6">
       {/* Heading */}
-
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800">
           Approval Requests
         </h1>
 
         <p className="text-gray-500 mt-1 text-sm md:text-base">
-          Review seller and delivery partner registration requests.
+          Review pending seller and delivery partner account requests.
         </p>
       </div>
 
-      {/* Search */}
+      {/* Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Seller Requests */}
+        <Link
+          href="/owner/admin/requests/sellers"
+          className="bg-white rounded-xl shadow hover:shadow-lg transition p-6 border hover:border-green-600 group"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800 group-hover:text-green-600 transition">
+                Seller Requests
+              </h2>
 
-      <div className="bg-white rounded-xl shadow p-4 md:p-5">
-        <input
-          type="text"
-          placeholder="Search request..."
-          className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-green-600"
-        />
-      </div>
+              <p className="text-gray-500 mt-2 text-sm">
+                View and manage all pending seller approval requests.
+              </p>
+            </div>
 
-      {/* Table */}
+            <div className="text-4xl">🏪</div>
+          </div>
 
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Type
-                </th>
+          <div className="mt-6 inline-flex items-center text-green-600 font-medium">
+            Open Requests
+            <span className="ml-2">→</span>
+          </div>
+        </Link>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Name / Shop
-                </th>
+        {/* Delivery Requests */}
+        <Link
+          href="/owner/admin/requests/delivery-partners"
+          className="bg-white rounded-xl shadow hover:shadow-lg transition p-6 border hover:border-blue-600 group"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600 transition">
+                Delivery Partner Requests
+              </h2>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Owner
-                </th>
+              <p className="text-gray-500 mt-2 text-sm">
+                View and manage all pending delivery partner approval requests.
+              </p>
+            </div>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Email
-                </th>
+            <div className="text-4xl">🚚</div>
+          </div>
 
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Mobile
-                </th>
-
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Submitted
-                </th>
-
-                <th className="text-left px-4 md:px-6 py-4 whitespace-nowrap">
-                  Status
-                </th>
-
-                <th className="text-center px-4 md:px-6 py-4 whitespace-nowrap">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {requests.map((request) => (
-                <tr key={request.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    {request.type}
-                  </td>
-
-                  <td className="px-4 md:px-6 py-4 font-medium whitespace-nowrap">
-                    {request.name}
-                  </td>
-
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    {request.owner}
-                  </td>
-
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    {request.email}
-                  </td>
-
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    {request.mobile}
-                  </td>
-
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    {request.submittedOn}
-                  </td>
-
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">
-                      {request.status}
-                    </span>
-                  </td>
-
-                  <td className="px-4 md:px-6 py-4">
-                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                      <button className="bg-blue-600 hover:bg-blue-700 transition text-white px-4 py-2 rounded-lg text-sm">
-                        View
-                      </button>
-
-                      <button className="bg-green-600 hover:bg-green-700 transition text-white px-4 py-2 rounded-lg text-sm">
-                        Approve
-                      </button>
-
-                      <button className="bg-red-600 hover:bg-red-700 transition text-white px-4 py-2 rounded-lg text-sm">
-                        Reject
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <div className="mt-6 inline-flex items-center text-blue-600 font-medium">
+            Open Requests
+            <span className="ml-2">→</span>
+          </div>
+        </Link>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+// seller model
 import mongoose from "mongoose";
 
 const sellerSchema = new mongoose.Schema(
@@ -23,6 +24,10 @@ const sellerSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    isBlocked: {
+      type: Boolean,
+      default: false,
     },
     address: {
       type: String,

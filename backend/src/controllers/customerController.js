@@ -55,10 +55,6 @@ export const updateCustomerProfile = async (req, res) => {
 // GET ALL CUSTOMERS (ADMIN)
 // ======================
 
-// ======================
-// GET ALL CUSTOMERS (ADMIN)
-// ======================
-
 export const getCustomers = async (req, res) => {
   try {
     const { search } = req.query;

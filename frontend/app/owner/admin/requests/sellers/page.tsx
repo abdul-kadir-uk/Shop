@@ -4,68 +4,62 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import adminApi from "@/lib/adminApi";
 
-export default function SellersPage() {
+export default function SellerRequestsPage() {
   const [sellers, setSellers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
 
-  const fetchSellers = async (searchValue = "") => {
+  const fetchSellerRequests = async () => {
     try {
       setLoading(true);
 
-      const { data } = await adminApi.get("/admin/sellers", {
-        params: {
-          search: searchValue,
-        },
-      });
+      const { data } = await adminApi.get("/admin/requests/sellers");
 
       setSellers(data.sellers);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to load sellers.");
+      setError(
+        err.response?.data?.message || "Failed to load seller requests.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleBlockToggle = async (id: string, isBlocked: boolean) => {
+  useEffect(() => {
+    fetchSellerRequests();
+  }, []);
+
+  const approveSeller = async (id: string) => {
     try {
       setUpdatingId(id);
 
-      if (isBlocked) {
-        await adminApi.put(`/admin/sellers/${id}/unblock`);
-      } else {
-        await adminApi.put(`/admin/sellers/${id}/block`);
-      }
+      await adminApi.patch(`/admin/requests/sellers/${id}/approve`);
 
-      setSellers((prev) =>
-        prev.map((seller) =>
-          seller._id === id
-            ? {
-                ...seller,
-                isBlocked: !isBlocked,
-              }
-            : seller,
-        ),
-      );
+      setSellers((prev) => prev.filter((seller) => seller._id !== id));
     } catch (err: any) {
-      alert(err.response?.data?.message || "Something went wrong.");
+      alert(err.response?.data?.message || "Failed to approve seller.");
     } finally {
       setUpdatingId(null);
     }
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchSellers(search);
-    }, 2000);
+  const rejectSeller = async (id: string) => {
+    try {
+      setUpdatingId(id);
 
-    return () => clearTimeout(timer);
-  }, [search]);
+      await adminApi.patch(`/admin/requests/sellers/${id}/reject`);
+
+      setSellers((prev) => prev.filter((seller) => seller._id !== id));
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to reject seller.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   if (loading) {
-    return <div className="p-6 text-center">Loading sellers...</div>;
+    return <div className="p-6 text-center">Loading seller requests...</div>;
   }
 
   if (error) {
@@ -77,23 +71,13 @@ export default function SellersPage() {
       {/* Heading */}
 
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800">Sellers</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800">
+          Seller Requests
+        </h1>
 
         <p className="text-gray-500 mt-1 text-sm md:text-base">
-          Manage all approved sellers.
+          Review all pending seller approval requests.
         </p>
-      </div>
-
-      {/* Search */}
-
-      <div className="bg-white rounded-xl shadow p-4 md:p-5">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, email, mobile or shop..."
-          className="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-green-600"
-        />
       </div>
 
       {/* Table */}
@@ -124,11 +108,7 @@ export default function SellersPage() {
                 </th>
 
                 <th className="text-left px-2 md:px-3 py-2 whitespace-nowrap">
-                  Joined
-                </th>
-
-                <th className="text-left px-2 md:px-3 py-2 whitespace-nowrap">
-                  Status
+                  Requested
                 </th>
 
                 <th className="text-center px-2 md:px-3 py-2 whitespace-nowrap">
@@ -153,7 +133,7 @@ export default function SellersPage() {
                   </td>
 
                   <td className="px-2 md:px-3 py-2 whitespace-nowrap">
-                    {seller.email}
+                    {seller.userId?.email || "-"}
                   </td>
 
                   <td className="px-2 md:px-3 py-2 whitespace-nowrap">
@@ -161,29 +141,17 @@ export default function SellersPage() {
                   </td>
 
                   <td className="px-2 md:px-3 py-2 whitespace-nowrap">
-                    {new Date(seller.joined).toLocaleDateString("en-GB", {
+                    {new Date(seller.createdAt).toLocaleDateString("en-GB", {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
                     })}
                   </td>
 
-                  <td className="px-2 md:px-3 py-2 whitespace-nowrap">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        seller.isBlocked
-                          ? "bg-red-100 text-red-700"
-                          : "bg-green-100 text-green-700"
-                      }`}
-                    >
-                      {seller.isBlocked ? "Blocked" : "Active"}
-                    </span>
-                  </td>
-
                   <td className="px-2 md:px-3 py-2">
                     <div className="flex flex-col sm:flex-row gap-2 justify-center">
                       <Link
-                        href={`/owner/admin/sellers/${seller._id}`}
+                        href={`/owner/admin/requests/sellers/${seller._id}`}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition text-center"
                       >
                         View
@@ -191,20 +159,18 @@ export default function SellersPage() {
 
                       <button
                         disabled={updatingId === seller._id}
-                        onClick={() =>
-                          handleBlockToggle(seller._id, seller.isBlocked)
-                        }
-                        className={`px-3 py-1 rounded-lg text-sm text-white transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                          seller.isBlocked
-                            ? "bg-green-600 hover:bg-green-700"
-                            : "bg-red-600 hover:bg-red-700"
-                        }`}
+                        onClick={() => approveSeller(seller._id)}
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {updatingId === seller._id
-                          ? "Updating..."
-                          : seller.isBlocked
-                            ? "Unblock"
-                            : "Block"}
+                        {updatingId === seller._id ? "Updating..." : "Approve"}
+                      </button>
+
+                      <button
+                        disabled={updatingId === seller._id}
+                        onClick={() => rejectSeller(seller._id)}
+                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {updatingId === seller._id ? "Updating..." : "Reject"}
                       </button>
                     </div>
                   </td>
@@ -213,8 +179,8 @@ export default function SellersPage() {
 
               {sellers.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-gray-500">
-                    No approved sellers found.
+                  <td colSpan={7} className="text-center py-10 text-gray-500">
+                    No pending seller requests found.
                   </td>
                 </tr>
               )}

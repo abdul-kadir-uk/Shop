@@ -1,3 +1,4 @@
+// delivery model
 import mongoose from "mongoose";
 
 const deliveryPartnerSchema = new mongoose.Schema(
@@ -18,6 +19,10 @@ const deliveryPartnerSchema = new mongoose.Schema(
       required: true,
       unique: true,
       trim: true,
+    },
+    isBlocked: {
+      type: Boolean,
+      default: false,
     },
     address: {
       type: String,
