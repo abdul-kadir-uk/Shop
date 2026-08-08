@@ -42,6 +42,14 @@ import {
   getPendingSellerRequestById,
 } from "../controllers/requestController.js";
 
+import {
+  createCity,
+  getAllCities,
+  updateCity,
+  updateCityStatus,
+  deleteCity,
+} from "../controllers/cityController.js";
+
 import adminMiddleware from "../middleware/adminMiddleware.js";
 import protect from "../middleware/authMiddleware.js";
 
@@ -185,5 +193,24 @@ router.get(
   adminMiddleware,
   getPendingDeliveryRequestById,
 );
+
+// ======================
+// CITY MANAGEMENT
+// ======================
+
+// Create City
+router.post("/cities", protect, adminMiddleware, createCity);
+
+// Get All Cities
+router.get("/cities", protect, adminMiddleware, getAllCities);
+
+// Update City
+router.put("/cities/:id", protect, adminMiddleware, updateCity);
+
+// Update City Status
+router.patch("/cities/:id/status", protect, adminMiddleware, updateCityStatus);
+
+// Delete City
+router.delete("/cities/:id", protect, adminMiddleware, deleteCity);
 
 export default router;

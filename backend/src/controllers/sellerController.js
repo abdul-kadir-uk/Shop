@@ -23,16 +23,26 @@ export const getSellerDashboard = async (req, res) => {
 // Get Seller Profile
 export const getSellerProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
+    const user = await User.findById(req.user._id).select("-password").lean();
 
     const seller = await Seller.findOne({
       userId: req.user._id,
-    });
+    }).lean();
+
+    if (!seller) {
+      return res.status(404).json({
+        success: false,
+        message: "Seller profile not found",
+      });
+    }
 
     res.status(200).json({
       success: true,
-      user,
-      seller,
+      user: {
+        ...user,
+        ...seller,
+        role: user.role,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -41,7 +51,6 @@ export const getSellerProfile = async (req, res) => {
     });
   }
 };
-
 // Update Seller Profile
 export const updateSellerProfile = async (req, res) => {
   try {

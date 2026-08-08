@@ -4,6 +4,14 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import sellerRoutes from "./routes/sellerRoutes.js";
+import deliveryRoutes from "./routes/deliveryRoutes.js";
+import groceryProductRoutes from "./routes/groceryProductRoutes.js";
+import groceriesRoutes from "./routes/groceriesRoutes.js";
+import cartRoutes from "./routes/cartRoutes.js";
+import checkoutRoutes from "./routes/checkoutRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
+import cityRoutes from "./routes/cityRoutes.js";
 
 const app = express();
 
@@ -22,6 +30,15 @@ app.use(cookieParser());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+
+app.use("/api/seller", sellerRoutes);
+app.use("/api/delivery", deliveryRoutes);
+app.use("/api/seller/grocery", groceryProductRoutes);
+app.use("/api/groceries", groceriesRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/checkout", checkoutRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/cities", cityRoutes);
 
 // Health Check Route
 app.get("/", (req, res) => {

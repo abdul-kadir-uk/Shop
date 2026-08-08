@@ -1,6 +1,89 @@
 import DeliveryPartner from "../models/DeliveryPartner.js";
 import User from "../models/User.js";
 
+// Seller Dashboard
+export const getDeliveryDashboard = async (req, res) => {
+  try {
+    const seller = await DeliveryPartner.findOne({
+      userId: req.user._id,
+    });
+
+    res.status(200).json({
+      success: true,
+      seller,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Get delivery partner Profile
+export const getDeliveryProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password").lean();
+
+    const deliveryPartner = await DeliveryPartner.findOne({
+      userId: req.user._id,
+    }).lean();
+
+    res.status(200).json({
+      success: true,
+      user,
+      deliveryPartner,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Update delivery partner Profile
+export const updateDeliveryProfile = async (req, res) => {
+  try {
+    const { name, mobile, address } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    const deliveryPartner = await DeliveryPartner.findOne({
+      userId: req.user._id,
+    });
+
+    if (!user || !deliveryPartner) {
+      return res.status(404).json({
+        success: false,
+        message: "delivery partner not found",
+      });
+    }
+
+    user.name = name || user.name;
+    user.mobile = mobile || user.mobile;
+    user.address = address || user.address;
+
+    deliveryPartner.shopName = shopName || deliveryPartner.shopName;
+    deliveryPartner.category = category || deliveryPartner.category;
+
+    await user.save();
+    await deliveryPartner.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user,
+      deliveryPartner,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // ======================
 // GET ALL APPROVED DELIVERY PARTNERS (ADMIN)
 // ======================

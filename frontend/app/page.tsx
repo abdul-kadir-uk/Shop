@@ -1,8 +1,8 @@
-import Header from "@/components/Header";
-import AuthBanner from "@/components/AuthBanner";
-import Hero from "@/components/Hero";
-import ServicesSection from "@/components/ServicesSection";
-import Footer from "@/components/Footer";
+import Header from "@/components/layout/Header";
+import AuthBanner from "@/components/layout/AuthBanner";
+import Hero from "@/components/layout/Hero";
+import ServicesSection from "@/components/layout/ServicesSection";
+import Footer from "@/components/layout/Footer";
 
 export default function Home() {
   return (

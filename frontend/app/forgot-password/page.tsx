@@ -8,7 +8,7 @@ export default function ForgotPasswordPage() {
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: "",
+    identifier: "",
     securityQuestion: "",
     securityAnswer: "",
   });
@@ -72,13 +72,13 @@ export default function ForgotPasswordPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email */}
           <div>
-            <label className="block mb-2 font-medium">Email Address</label>
+            <label className="block mb-2 font-medium">Email or Mobile</label>
 
             <input
               type="email"
               name="email"
               placeholder="Enter your email"
-              value={formData.email}
+              value={formData.identifier}
               onChange={handleChange}
               className="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
               required

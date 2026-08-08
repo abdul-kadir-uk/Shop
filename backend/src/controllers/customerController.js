@@ -4,11 +4,11 @@ import Customer from "../models/Customer.js";
 // Get Customer Profile
 export const getCustomerProfile = async (req, res) => {
   try {
-    const customer = await User.findById(req.user._id).select("-password");
+    const user = await User.findById(req.user._id).select("-password").lean();
 
     res.status(200).json({
       success: true,
-      customer,
+      user,
     });
   } catch (error) {
     res.status(500).json({

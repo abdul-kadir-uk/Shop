@@ -229,9 +229,14 @@ export const deliverySignup = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
 
-    const user = await User.findOne({ email });
+    // Login using either email or mobile number
+    const loginIdentifier = identifier.trim().toLowerCase();
+
+    const user = await User.findOne({
+      $or: [{ email: loginIdentifier }, { mobile: loginIdentifier }],
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -245,7 +250,7 @@ export const login = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message: "Invalid email/mobile or password",
       });
     }
 
@@ -300,9 +305,13 @@ export const login = async (req, res) => {
 // verification for reset password
 export const verifySecurity = async (req, res) => {
   try {
-    const { email, securityQuestion, securityAnswer } = req.body;
+    const { identifier, securityQuestion, securityAnswer } = req.body;
 
-    const user = await User.findOne({ email });
+    const loginIdentifier = identifier.trim().toLowerCase();
+
+    const user = await User.findOne({
+      $or: [{ email: loginIdentifier }, { mobile: loginIdentifier }],
+    });
 
     if (!user) {
       return res.status(404).json({
