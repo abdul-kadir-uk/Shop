@@ -1,7 +1,10 @@
+// controllers/sellerOrderController.js
+
 import mongoose from "mongoose";
 
 import Order from "../models/Order.js";
 import Seller from "../models/Seller.js";
+
 import {
   ORDER_STATUS,
   SELLER_ALLOWED_STATUS,
@@ -14,12 +17,20 @@ import {
 
 export const getSellerOrders = async (req, res) => {
   try {
+    // ------------------------------------------------------
+    // Check role
+    // ------------------------------------------------------
+
     if (req.user.role !== "seller") {
       return res.status(403).json({
         success: false,
         message: "Only sellers can access orders.",
       });
     }
+
+    // ------------------------------------------------------
+    // Find seller
+    // ------------------------------------------------------
 
     const seller = await Seller.findOne({
       userId: req.user._id,
@@ -32,26 +43,80 @@ export const getSellerOrders = async (req, res) => {
       });
     }
 
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
+    // ------------------------------------------------------
+    // Pagination
+    // ------------------------------------------------------
+
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.max(Number(req.query.limit) || 10, 1);
     const skip = (page - 1) * limit;
+
+    // ------------------------------------------------------
+    // Status filter
+    // ------------------------------------------------------
 
     const status = req.query.status || "";
 
+    // ------------------------------------------------------
+    // Base query
+    //
+    // Seller dashboard continues to work using
+    // individual seller items.
+    // ------------------------------------------------------
+
     const query = {
-      "items.seller": seller._id,
+      items: {
+        $elemMatch: {
+          seller: seller._id,
+        },
+      },
     };
 
-    if (status) {
-      query["items.orderStatus"] = status;
+    // ------------------------------------------------------
+    // Pending seller orders
+    //
+    // Seller still needs to resolve their items.
+    // ------------------------------------------------------
+
+    if (status === "ordered") {
+      query.items.$elemMatch.orderStatus = ORDER_STATUS.ORDERED;
     }
 
+    // ------------------------------------------------------
+    // Completed seller orders
+    //
+    // Seller has already resolved their items.
+    // ------------------------------------------------------
+
+    if (status === "completed") {
+      query.items.$elemMatch.orderStatus = {
+        $in: [
+          ORDER_STATUS.CONFIRMED,
+          ORDER_STATUS.NOT_AVAILABLE,
+          ORDER_STATUS.DELIVERED,
+          ORDER_STATUS.CANCELLED,
+        ],
+      };
+    }
+
+    // ------------------------------------------------------
+    // Count
+    // ------------------------------------------------------
+
     const totalOrders = await Order.countDocuments(query);
+
+    // ------------------------------------------------------
+    // Get orders
+    // ------------------------------------------------------
 
     const orders = await Order.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+
+    // ------------------------------------------------------
+    // Format seller-specific view
+    // ------------------------------------------------------
 
     const formattedOrders = orders.map((order) => {
       const sellerItems = order.items.filter(
@@ -93,6 +158,7 @@ export const getSellerOrders = async (req, res) => {
 
           subtotal: item.subtotal,
 
+          // Seller continues to work with item status
           orderStatus: item.orderStatus,
         })),
       };
@@ -128,12 +194,20 @@ export const getSellerOrders = async (req, res) => {
 
 export const getSellerSingleOrder = async (req, res) => {
   try {
+    // ------------------------------------------------------
+    // Check role
+    // ------------------------------------------------------
+
     if (req.user.role !== "seller") {
       return res.status(403).json({
         success: false,
         message: "Only sellers can access orders.",
       });
     }
+
+    // ------------------------------------------------------
+    // Find seller
+    // ------------------------------------------------------
 
     const seller = await Seller.findOne({
       userId: req.user._id,
@@ -146,6 +220,10 @@ export const getSellerSingleOrder = async (req, res) => {
       });
     }
 
+    // ------------------------------------------------------
+    // Validate order ID
+    // ------------------------------------------------------
+
     const { orderId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
@@ -155,8 +233,12 @@ export const getSellerSingleOrder = async (req, res) => {
       });
     }
 
+    // ------------------------------------------------------
+    // Find combined order
+    // ------------------------------------------------------
+
     const order = await Order.findById(orderId).select(
-      "orderNumber orderStatus paymentStatus createdAt items",
+      "orderNumber paymentStatus createdAt items",
     );
 
     if (!order) {
@@ -165,6 +247,10 @@ export const getSellerSingleOrder = async (req, res) => {
         message: "Order not found.",
       });
     }
+
+    // ------------------------------------------------------
+    // Get only this seller's items
+    // ------------------------------------------------------
 
     const sellerItems = order.items.filter(
       (item) => item.seller.toString() === seller._id.toString(),
@@ -176,6 +262,10 @@ export const getSellerSingleOrder = async (req, res) => {
         message: "You are not authorized to view this order.",
       });
     }
+
+    // ------------------------------------------------------
+    // Seller total
+    // ------------------------------------------------------
 
     const sellerTotal = sellerItems.reduce(
       (sum, item) => sum + item.subtotal,
@@ -234,14 +324,27 @@ export const getSellerSingleOrder = async (req, res) => {
    PATCH /api/seller/orders/:orderId/status
 ========================================================== */
 
+/* ==========================================================
+Seller Update Order Status
+PATCH /api/seller/orders/:orderId/status
+========================================================== */
+
 export const updateSellerOrderStatus = async (req, res) => {
   try {
+    // ------------------------------------------------------
+    // Check role
+    // ------------------------------------------------------
+
     if (req.user.role !== "seller") {
       return res.status(403).json({
         success: false,
         message: "Only sellers can update orders.",
       });
     }
+
+    // ------------------------------------------------------
+    // Find seller
+    // ------------------------------------------------------
 
     const seller = await Seller.findOne({
       userId: req.user._id,
@@ -254,8 +357,16 @@ export const updateSellerOrderStatus = async (req, res) => {
       });
     }
 
+    // ------------------------------------------------------
+    // Params / Body
+    // ------------------------------------------------------
+
     const { orderId } = req.params;
-    const { status } = req.body;
+    const { itemIndex, status } = req.body;
+
+    // ------------------------------------------------------
+    // Validate order ID
+    // ------------------------------------------------------
 
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({
@@ -264,12 +375,34 @@ export const updateSellerOrderStatus = async (req, res) => {
       });
     }
 
+    // ------------------------------------------------------
+    // Validate item index
+    // ------------------------------------------------------
+
+    const index = Number(itemIndex);
+
+    if (!Number.isInteger(index) || index < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid item index.",
+      });
+    }
+
+    // ------------------------------------------------------
+    // Validate seller status
+    // ------------------------------------------------------
+
     if (!SELLER_ALLOWED_STATUS.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid status.",
+        message:
+          "Invalid status. Seller can only set confirmed or notAvailable.",
       });
     }
+
+    // ------------------------------------------------------
+    // Find order
+    // ------------------------------------------------------
 
     const order = await Order.findById(orderId);
 
@@ -280,41 +413,84 @@ export const updateSellerOrderStatus = async (req, res) => {
       });
     }
 
-    const hasSellerItem = order.items.some(
-      (item) => item.seller.toString() === seller._id.toString(),
-    );
+    // ------------------------------------------------------
+    // Find requested item
+    // ------------------------------------------------------
 
-    if (!hasSellerItem) {
-      return res.status(403).json({
+    const item = order.items[index];
+
+    if (!item) {
+      return res.status(404).json({
         success: false,
-        message: "Unauthorized access.",
+        message: "Order item not found.",
       });
     }
 
-    // Only ordered -> confirmed / notAvailable
-    const sellerItems = order.items.filter(
-      (item) => item.seller.toString() === seller._id.toString(),
-    );
+    // ------------------------------------------------------
+    // Make sure this item belongs to this seller
+    // ------------------------------------------------------
 
-    for (const item of sellerItems) {
-      if (item.orderStatus !== ORDER_STATUS.ORDERED) {
-        return res.status(400).json({
-          success: false,
-          message: `Item is already ${item.orderStatus}.`,
-        });
-      }
+    if (item.seller.toString() !== seller._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update this item.",
+      });
     }
 
-    sellerItems.forEach((item) => {
-      item.orderStatus = status;
-    });
+    // ------------------------------------------------------
+    // Only ordered -> confirmed / notAvailable
+    //
+    // Seller cannot modify an item that has already
+    // been resolved.
+    // ------------------------------------------------------
+
+    if (item.orderStatus !== ORDER_STATUS.ORDERED) {
+      return res.status(400).json({
+        success: false,
+        message: `Item is already ${item.orderStatus}.`,
+      });
+    }
+
+    // ------------------------------------------------------
+    // Update ONLY the selected item
+    // ------------------------------------------------------
+
+    item.orderStatus = status;
 
     await order.save();
 
+    // ------------------------------------------------------
+    // Check whether all items in the combined order
+    // have now been resolved by sellers.
+    // ------------------------------------------------------
+
+    const allItemsResolved = order.items.every(
+      (orderItem) =>
+        orderItem.orderStatus === ORDER_STATUS.CONFIRMED ||
+        orderItem.orderStatus === ORDER_STATUS.NOT_AVAILABLE ||
+        orderItem.orderStatus === ORDER_STATUS.CANCELLED,
+    );
+
+    // ------------------------------------------------------
+    // Response
+    // ------------------------------------------------------
+
     return res.status(200).json({
       success: true,
-      message: "Order status updated successfully.",
-      orderStatus: order.orderStatus,
+
+      message: "Order item status updated successfully.",
+
+      order: {
+        _id: order._id,
+
+        orderNumber: order.orderNumber,
+
+        itemIndex: index,
+
+        orderStatus: item.orderStatus,
+
+        allItemsResolved,
+      },
     });
   } catch (error) {
     console.error("Seller Update Order Error:", error);

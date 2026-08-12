@@ -24,3 +24,8 @@ export const CUSTOMER_CANCELLABLE_STATUS = [
   ORDER_STATUS.ORDERED,
   ORDER_STATUS.CONFIRMED,
 ];
+
+export const PAYMENT_STATUS = {
+  PENDING: "pending",
+  PAID: "paid",
+};

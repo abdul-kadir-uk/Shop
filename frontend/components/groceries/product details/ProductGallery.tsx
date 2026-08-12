@@ -40,6 +40,7 @@ export default function ProductGallery({ product }: ProductGalleryProps) {
         <Image
           src={selectedImage}
           alt={product.productName}
+          loading="eager"
           fill
           priority
           className="object-contain p-4"

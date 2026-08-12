@@ -1,3 +1,4 @@
+// app/seller/grocery/layout.tsx
 "use client";
 
 import { useState } from "react";

@@ -1,3 +1,4 @@
+// components/groceries/ProductGrid.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -51,19 +52,27 @@ export default function ProductGrid({ filters, search }: ProductGridProps) {
 
       if (search) params.search = search;
 
-      if (filters.category) params.category = filters.category;
+      if (filters.category) {
+        params.category = filters.category;
+      }
 
-      if (filters.subCategory) params.subCategory = filters.subCategory;
+      if (filters.subCategory) {
+        params.subCategory = filters.subCategory;
+      }
 
-      if (filters.minPrice) params.minPrice = filters.minPrice;
+      if (filters.minPrice) {
+        params.minPrice = filters.minPrice;
+      }
 
-      if (filters.maxPrice) params.maxPrice = filters.maxPrice;
+      if (filters.maxPrice) {
+        params.maxPrice = filters.maxPrice;
+      }
 
-      if (filters.sort) params.sort = filters.sort;
+      if (filters.sort) {
+        params.sort = filters.sort;
+      }
 
       const data = await getAllGroceries(params);
-
-      console.log(data);
 
       if (data.success) {
         setProducts(data.products);
@@ -80,24 +89,31 @@ export default function ProductGrid({ filters, search }: ProductGridProps) {
   }, [filters, search]);
 
   return (
-    <section>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">Grocery Products</h2>
-      </div>
+    <section className="w-full min-w-0">
+      {/* Heading */}
+      <h1 className="mb-4 text-xl font-semibold text-gray-900 sm:text-2xl">
+        Grocery Products
+      </h1>
 
+      {/* Loading */}
       {loading ? (
         <div className="py-10 text-center">Loading products...</div>
       ) : products.length === 0 ? (
+        /* Empty State */
         <div className="py-10 text-center text-gray-500">
           No products found.
         </div>
       ) : (
+        /* Product Grid */
         <div
           className="
             grid
-            gap-1
-            sm:gap-6
-            grid-cols-2
+            w-full
+            min-w-0
+            grid-cols-1
+            gap-3
+            min-[400px]:grid-cols-2
+            sm:gap-4
             sm:grid-cols-3
             md:grid-cols-4
             lg:grid-cols-5

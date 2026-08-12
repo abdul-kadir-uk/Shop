@@ -6,15 +6,16 @@ import DeliveryPartner from "../models/DeliveryPartner.js";
 import {
   ORDER_STATUS,
   DELIVERY_ALLOWED_STATUS,
+  PAYMENT_STATUS,
 } from "../constants/orderStatus.js";
 
 // ======================================================
 // Get Available Delivery Orders
 // ======================================================
-// Shows confirmed items that have NOT been accepted
-// by any delivery partner yet.
+// A delivery partner can see and accept an order
+// immediately after the customer places it.
 //
-// Every approved delivery partner can see these items.
+// Seller confirmation is NOT required for acceptance.
 // ======================================================
 
 export const getAvailableDeliveryOrders = async (req, res) => {
@@ -46,59 +47,60 @@ export const getAvailableDeliveryOrders = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Find orders containing confirmed,
-    // unassigned items
+    // Pagination
+    // --------------------------------------------------
+
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = 10;
+    const skip = (page - 1) * limit;
+
+    // --------------------------------------------------
+    // Find orders that:
+    //
+    // 1. Are still ordered
+    // 2. Have not already been assigned
+    //
+    // IMPORTANT:
+    // We do NOT check item.orderStatus here.
+    // Seller confirmation is not required.
     // --------------------------------------------------
 
     const orders = await Order.find({
-      items: {
-        $elemMatch: {
-          orderStatus: ORDER_STATUS.CONFIRMED,
-          deliveryPartner: null,
-        },
-      },
+      orderStatus: ORDER_STATUS.ORDERED,
+      "items.deliveryPartner": null,
     })
       .populate("customer", "name email mobile")
-      .populate("items.seller", "shopName")
+      .populate("items.seller", "shopName address")
       .populate("items.product", "productName slug")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     // --------------------------------------------------
-    // Return only available items
-    //
-    // We don't want to expose unrelated items from
-    // the same order to the delivery partner.
+    // Only return orders that still have at least one
+    // unassigned delivery partner.
     // --------------------------------------------------
 
-    const availableOrders = orders
-      .map((order) => {
-        const availableItems = order.items.filter(
-          (item) =>
-            item.orderStatus === ORDER_STATUS.CONFIRMED &&
-            !item.deliveryPartner,
-        );
+    const availableOrders = orders.filter((order) => {
+      return order.items.some((item) => !item.deliveryPartner);
+    });
 
-        if (availableItems.length === 0) {
-          return null;
-        }
+    // --------------------------------------------------
+    // Pagination after filtering
+    // --------------------------------------------------
 
-        return {
-          _id: order._id,
-          orderNumber: order.orderNumber,
-          customer: order.customer,
-          shippingAddress: order.shippingAddress,
-          deliveryContact: order.deliveryContact,
-          items: availableItems,
-          pricing: order.pricing,
-          createdAt: order.createdAt,
-        };
-      })
-      .filter(Boolean);
+    const totalOrders = availableOrders.length;
+    const totalPages = Math.ceil(totalOrders / limit);
+
+    const paginatedOrders = availableOrders.slice(skip, skip + limit);
 
     return res.status(200).json({
       success: true,
-      count: availableOrders.length,
-      orders: availableOrders,
+      count: paginatedOrders.length,
+      totalOrders,
+      totalPages,
+      page,
+      limit,
+      orders: paginatedOrders,
     });
   } catch (error) {
     console.error("Get Available Delivery Orders Error:", error);
@@ -111,19 +113,16 @@ export const getAvailableDeliveryOrders = async (req, res) => {
 };
 
 // ======================================================
-// Accept Delivery Order Item
+// Accept Delivery Order
 // ======================================================
-// A delivery partner accepts ONE confirmed item.
+// A delivery partner accepts the WHOLE order.
 //
-// IMPORTANT:
-// This uses an atomic MongoDB update so if two delivery
-// partners try to accept the same item at the same time,
-// only ONE of them can successfully claim it.
+// Seller confirmation is NOT required.
 // ======================================================
 
 export const acceptDeliveryOrder = async (req, res) => {
   try {
-    const { orderId, itemIndex } = req.params;
+    const { orderId } = req.params;
 
     // --------------------------------------------------
     // Validate order ID
@@ -133,19 +132,6 @@ export const acceptDeliveryOrder = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid order id.",
-      });
-    }
-
-    // --------------------------------------------------
-    // Validate item index
-    // --------------------------------------------------
-
-    const index = Number(itemIndex);
-
-    if (!Number.isInteger(index) || index < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid item index.",
       });
     }
 
@@ -165,43 +151,48 @@ export const acceptDeliveryOrder = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Atomically claim the item
+    // Atomically claim the WHOLE order
     //
-    // Conditions:
+    // The order must:
     //
-    // 1. Correct order
-    // 2. Correct item
-    // 3. Item must be confirmed
-    // 4. Item must not already have a delivery partner
+    // 1. Still be ordered
+    // 2. Not already have a delivery partner
+    //
+    // We check that no item has a delivery partner.
     // --------------------------------------------------
 
     const result = await Order.updateOne(
       {
         _id: orderId,
-        [`items.${index}`]: {
-          $exists: true,
+        orderStatus: ORDER_STATUS.ORDERED,
+
+        items: {
+          $not: {
+            $elemMatch: {
+              deliveryPartner: {
+                $ne: null,
+              },
+            },
+          },
         },
-        [`items.${index}.orderStatus`]: ORDER_STATUS.CONFIRMED,
-        [`items.${index}.deliveryPartner`]: null,
       },
       {
         $set: {
-          [`items.${index}.deliveryPartner`]: deliveryPartner._id,
-          [`items.${index}.acceptedAt`]: new Date(),
+          "items.$[].deliveryPartner": deliveryPartner._id,
+          "items.$[].acceptedAt": new Date(),
         },
       },
     );
 
     // --------------------------------------------------
-    // Nothing modified means the item was no longer
-    // available or the item doesn't exist.
+    // Order was already accepted / unavailable
     // --------------------------------------------------
 
     if (result.modifiedCount === 0) {
       return res.status(409).json({
         success: false,
         message:
-          "This delivery item is no longer available. It may have already been accepted by another delivery partner, or the seller has not confirmed it.",
+          "This order is no longer available. It may have already been accepted by another delivery partner.",
       });
     }
 
@@ -209,7 +200,11 @@ export const acceptDeliveryOrder = async (req, res) => {
     // Get updated order
     // --------------------------------------------------
 
-    const updatedOrder = await Order.findById(orderId);
+    const updatedOrder = await Order.findById(orderId)
+      .populate("customer", "name email mobile")
+      .populate("items.seller", "shopName address")
+      .populate("items.product", "productName slug")
+      .lean();
 
     if (!updatedOrder) {
       return res.status(404).json({
@@ -218,17 +213,22 @@ export const acceptDeliveryOrder = async (req, res) => {
       });
     }
 
-    const item = updatedOrder.items[index];
-
     return res.status(200).json({
       success: true,
-      message: "Delivery item accepted successfully.",
-      orderId: updatedOrder._id,
-      orderNumber: updatedOrder.orderNumber,
-      itemIndex: index,
-      deliveryPartner: item.deliveryPartner,
-      acceptedAt: item.acceptedAt,
-      orderStatus: item.orderStatus,
+      message: "Order accepted successfully.",
+      order: {
+        _id: updatedOrder._id,
+        orderNumber: updatedOrder.orderNumber,
+        orderStatus: updatedOrder.orderStatus,
+        customer: updatedOrder.customer,
+        shippingAddress: updatedOrder.shippingAddress,
+        deliveryContact: updatedOrder.deliveryContact,
+        items: updatedOrder.items,
+        pricing: updatedOrder.pricing,
+        paymentMethod: updatedOrder.paymentMethod,
+        paymentStatus: updatedOrder.paymentStatus,
+        createdAt: updatedOrder.createdAt,
+      },
     });
   } catch (error) {
     console.error("Accept Delivery Order Error:", error);
@@ -243,28 +243,10 @@ export const acceptDeliveryOrder = async (req, res) => {
 // ======================================================
 // Get My Delivery Orders
 // ======================================================
-// Returns only items accepted by the logged-in delivery
-// partner.
-// ======================================================
-
-// ======================================================
-// Get My Delivery Orders
-// ======================================================
-// Default:
+// Returns WHOLE orders accepted by this delivery partner.
 //
-// GET /api/delivery/my-orders
-//
-// Returns pending delivery items:
-// - confirmed
-// - outForDelivery
-//
-// Completed:
-//
-// GET /api/delivery/my-orders?status=completed
-//
-// Returns completed delivery items:
-// - delivered
-// - cancelled
+// Seller item statuses are included so the frontend can
+// determine whether "Out for Delivery" is allowed.
 // ======================================================
 
 export const getMyDeliveryOrders = async (req, res) => {
@@ -297,29 +279,32 @@ export const getMyDeliveryOrders = async (req, res) => {
 
     // --------------------------------------------------
     // Status filter
-    //
-    // Default = pending
     // --------------------------------------------------
 
     const { status = "pending" } = req.query;
 
     // --------------------------------------------------
-    // Define status groups
+    // Pagination
     // --------------------------------------------------
 
-    const pendingStatuses = [
-      ORDER_STATUS.CONFIRMED,
-      ORDER_STATUS.OUT_FOR_DELIVERY,
-    ];
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = 10;
+    const skip = (page - 1) * limit;
 
-    const completedStatuses = [ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED];
+    // --------------------------------------------------
+    // Pending
+    // --------------------------------------------------
 
-    let allowedStatuses;
+    let orderStatusQuery;
 
     if (status === "pending") {
-      allowedStatuses = pendingStatuses;
+      orderStatusQuery = {
+        $in: [ORDER_STATUS.ORDERED, ORDER_STATUS.OUT_FOR_DELIVERY],
+      };
     } else if (status === "completed") {
-      allowedStatuses = completedStatuses;
+      orderStatusQuery = {
+        $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED],
+      };
     } else {
       return res.status(400).json({
         success: false,
@@ -328,62 +313,105 @@ export const getMyDeliveryOrders = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Find orders containing this delivery partner's
-    // items with the requested status
+    // Find orders assigned to this delivery partner
     // --------------------------------------------------
 
     const orders = await Order.find({
+      orderStatus: orderStatusQuery,
+
       items: {
         $elemMatch: {
           deliveryPartner: deliveryPartner._id,
-          orderStatus: {
-            $in: allowedStatuses,
-          },
         },
       },
     })
       .populate("customer", "name email mobile")
-      .populate("items.seller", "shopName")
+      .populate("items.seller", "shopName address")
       .populate("items.product", "productName slug")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     // --------------------------------------------------
-    // Return only this delivery partner's items
-    // matching the requested status
+    // Return the COMPLETE order.
+    //
+    // Do NOT filter individual items here.
+    //
+    // The delivery partner accepted the whole order.
     // --------------------------------------------------
 
-    const myOrders = orders
-      .map((order) => {
-        const myItems = order.items.filter(
-          (item) =>
-            item.deliveryPartner &&
-            item.deliveryPartner.toString() ===
-              deliveryPartner._id.toString() &&
-            allowedStatuses.includes(item.orderStatus),
-        );
+    const myOrders = orders.map((order) => {
+      // ------------------------------------------------
+      // Determine whether every item is resolved
+      //
+      // Seller-resolved means:
+      // confirmed OR notAvailable
+      // ------------------------------------------------
 
-        if (myItems.length === 0) {
-          return null;
-        }
+      const allItemsResolved = order.items.every(
+        (item) =>
+          item.orderStatus === ORDER_STATUS.CONFIRMED ||
+          item.orderStatus === ORDER_STATUS.NOT_AVAILABLE,
+      );
 
-        return {
-          _id: order._id,
-          orderNumber: order.orderNumber,
-          customer: order.customer,
-          shippingAddress: order.shippingAddress,
-          deliveryContact: order.deliveryContact,
-          items: myItems,
-          pricing: order.pricing,
-          createdAt: order.createdAt,
-        };
-      })
-      .filter(Boolean);
+      // ------------------------------------------------
+      // There must be at least one deliverable item
+      // for the order to go out for delivery.
+      // ------------------------------------------------
+
+      const hasDeliverableItems = order.items.some(
+        (item) => item.orderStatus === ORDER_STATUS.CONFIRMED,
+      );
+
+      return {
+        _id: order._id,
+        orderNumber: order.orderNumber,
+        orderStatus: order.orderStatus,
+
+        customer: order.customer,
+
+        shippingAddress: order.shippingAddress,
+
+        deliveryContact: order.deliveryContact,
+
+        items: order.items,
+
+        pricing: order.pricing,
+
+        paymentMethod: order.paymentMethod,
+
+        paymentStatus: order.paymentStatus,
+
+        createdAt: order.createdAt,
+
+        // ------------------------------------------------
+        // Frontend can directly use this.
+        // ------------------------------------------------
+
+        canStartDelivery:
+          order.orderStatus === ORDER_STATUS.ORDERED &&
+          allItemsResolved &&
+          hasDeliverableItems,
+      };
+    });
+
+    // --------------------------------------------------
+    // Pagination
+    // --------------------------------------------------
+
+    const totalOrders = myOrders.length;
+    const totalPages = Math.ceil(totalOrders / limit);
+
+    const paginatedOrders = myOrders.slice(skip, skip + limit);
 
     return res.status(200).json({
       success: true,
       status,
-      count: myOrders.length,
-      orders: myOrders,
+      count: paginatedOrders.length,
+      totalOrders,
+      totalPages,
+      page,
+      limit,
+      orders: paginatedOrders,
     });
   } catch (error) {
     console.error("Get My Delivery Orders Error:", error);
@@ -396,14 +424,15 @@ export const getMyDeliveryOrders = async (req, res) => {
 };
 
 // ======================================================
-// Update Delivery Order Item Status
+// Update Delivery Order Status
 // ======================================================
-// Allowed:
+// Delivery partner updates the WHOLE order.
 //
-// confirmed -> outForDelivery
-//
-// outForDelivery -> delivered
-// outForDelivery -> cancelled
+// ordered
+//    ↓
+// outForDelivery
+//    ↓
+// delivered / cancelled
 // ======================================================
 
 export const updateDeliveryOrderStatus = async (req, res) => {
@@ -438,22 +467,13 @@ export const updateDeliveryOrderStatus = async (req, res) => {
     // Params / body
     // --------------------------------------------------
 
-    const { orderId, itemIndex } = req.params;
+    const { orderId } = req.params;
     const { status } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid order id.",
-      });
-    }
-
-    const index = Number(itemIndex);
-
-    if (!Number.isInteger(index) || index < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid item index.",
       });
     }
 
@@ -482,95 +502,195 @@ export const updateDeliveryOrderStatus = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Find item
+    // Make sure this delivery partner owns the order
     // --------------------------------------------------
 
-    const item = order.items[index];
+    const assignedToThisPartner = order.items.some(
+      (item) =>
+        item.deliveryPartner &&
+        item.deliveryPartner.toString() === deliveryPartner._id.toString(),
+    );
 
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        message: "Order item not found.",
-      });
-    }
-
-    // --------------------------------------------------
-    // Make sure this delivery partner accepted
-    // this item
-    // --------------------------------------------------
-
-    if (
-      !item.deliveryPartner ||
-      item.deliveryPartner.toString() !== deliveryPartner._id.toString()
-    ) {
+    if (!assignedToThisPartner) {
       return res.status(403).json({
         success: false,
-        message: "You are not assigned to this delivery item.",
+        message: "You are not assigned to this order.",
       });
     }
 
-    // --------------------------------------------------
-    // Validate status transition
-    // --------------------------------------------------
+    // ==================================================
+    // START DELIVERY
+    // ==================================================
 
-    if (
-      item.orderStatus === ORDER_STATUS.CONFIRMED &&
-      status !== ORDER_STATUS.OUT_FOR_DELIVERY
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "A confirmed item can only be changed to outForDelivery.",
+    if (status === ORDER_STATUS.OUT_FOR_DELIVERY) {
+      // ------------------------------------------------
+      // Order must still be ordered
+      // ------------------------------------------------
+
+      if (order.orderStatus !== ORDER_STATUS.ORDERED) {
+        return res.status(400).json({
+          success: false,
+          message: `Order cannot be started because it is already ${order.orderStatus}.`,
+        });
+      }
+
+      // ------------------------------------------------
+      // ALL items must be seller-resolved
+      //
+      // Valid:
+      // confirmed
+      // notAvailable
+      //
+      // Invalid:
+      // ordered
+      // ------------------------------------------------
+
+      const allItemsResolved = order.items.every(
+        (item) =>
+          item.orderStatus === ORDER_STATUS.CONFIRMED ||
+          item.orderStatus === ORDER_STATUS.NOT_AVAILABLE,
+      );
+
+      if (!allItemsResolved) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Delivery cannot start until all order items are resolved by sellers.",
+        });
+      }
+
+      // ------------------------------------------------
+      // At least one item must actually be deliverable
+      // ------------------------------------------------
+
+      const hasDeliverableItems = order.items.some(
+        (item) => item.orderStatus === ORDER_STATUS.CONFIRMED,
+      );
+
+      if (!hasDeliverableItems) {
+        return res.status(400).json({
+          success: false,
+          message: "This order has no available items to deliver.",
+        });
+      }
+
+      // ------------------------------------------------
+      // Start whole order
+      // ------------------------------------------------
+
+      order.orderStatus = ORDER_STATUS.OUT_FOR_DELIVERY;
+
+      await order.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Order is now out for delivery.",
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        orderStatus: order.orderStatus,
       });
     }
 
-    if (
-      item.orderStatus === ORDER_STATUS.OUT_FOR_DELIVERY &&
-      ![ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED].includes(status)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "An out-for-delivery item can only be delivered or cancelled.",
-      });
-    }
-
-    // --------------------------------------------------
-    // Prevent updating completed/cancelled items
-    // --------------------------------------------------
-
-    if (
-      item.orderStatus === ORDER_STATUS.DELIVERED ||
-      item.orderStatus === ORDER_STATUS.CANCELLED
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: `Item is already ${item.orderStatus}.`,
-      });
-    }
-
-    // --------------------------------------------------
-    // Update status
-    // --------------------------------------------------
-
-    item.orderStatus = status;
-
-    // --------------------------------------------------
-    // If delivered, store delivery time
-    // --------------------------------------------------
+    // ==================================================
+    // DELIVERED
+    // ==================================================
 
     if (status === ORDER_STATUS.DELIVERED) {
-      item.deliveredAt = new Date();
+      // ------------------------------------------------
+      // Order must currently be out for delivery
+      // ------------------------------------------------
+
+      if (order.orderStatus !== ORDER_STATUS.OUT_FOR_DELIVERY) {
+        return res.status(400).json({
+          success: false,
+          message: "Only an out-for-delivery order can be marked as delivered.",
+        });
+      }
+
+      // ------------------------------------------------
+      // Update whole order
+      // ------------------------------------------------
+
+      order.orderStatus = ORDER_STATUS.DELIVERED;
+
+      // ------------------------------------------------
+      // Mark confirmed items as delivered
+      //
+      // notAvailable items remain notAvailable.
+      // ------------------------------------------------
+
+      for (const item of order.items) {
+        if (item.orderStatus === ORDER_STATUS.CONFIRMED) {
+          item.orderStatus = ORDER_STATUS.DELIVERED;
+          item.deliveredAt = new Date();
+        }
+      }
+
+      // ------------------------------------------------
+      // COD payment is paid when delivery completes
+      // ------------------------------------------------
+
+      order.paymentStatus = PAYMENT_STATUS.PAID;
+
+      await order.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Order delivered successfully.",
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+      });
     }
 
-    await order.save();
+    // ==================================================
+    // CANCELLED
+    // ==================================================
 
-    return res.status(200).json({
-      success: true,
-      message: "Delivery status updated successfully.",
-      orderId: order._id,
-      orderNumber: order.orderNumber,
-      itemIndex: index,
-      orderStatus: item.orderStatus,
-      deliveredAt: item.deliveredAt,
+    if (status === ORDER_STATUS.CANCELLED) {
+      // ------------------------------------------------
+      // Cannot cancel after delivery
+      // ------------------------------------------------
+
+      if (
+        order.orderStatus === ORDER_STATUS.DELIVERED ||
+        order.orderStatus === ORDER_STATUS.CANCELLED
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: `Order is already ${order.orderStatus}.`,
+        });
+      }
+
+      // ------------------------------------------------
+      // Cancel whole order
+      // ------------------------------------------------
+
+      order.orderStatus = ORDER_STATUS.CANCELLED;
+
+      // ------------------------------------------------
+      // Keep seller item statuses intact.
+      //
+      // We intentionally do NOT change item.orderStatus
+      // here because those statuses belong to seller
+      // availability.
+      // ------------------------------------------------
+
+      await order.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Order cancelled successfully.",
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        orderStatus: order.orderStatus,
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: "Unsupported delivery status.",
     });
   } catch (error) {
     console.error("Update Delivery Order Status Error:", error);

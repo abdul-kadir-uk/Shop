@@ -114,6 +114,7 @@ export default function GroceryProductsPage() {
 
           <input
             type="text"
+            name="searchQuery"
             placeholder="Search by product name or brand..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -137,6 +138,7 @@ export default function GroceryProductsPage() {
           {/* Category */}
 
           <select
+            name="category"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="
@@ -178,6 +180,7 @@ export default function GroceryProductsPage() {
           {/* Sub Category */}
 
           <select
+            name="subCategory"
             value={selectedSubCategory}
             onChange={(e) => setSelectedSubCategory(e.target.value)}
             className="
@@ -271,8 +274,6 @@ export default function GroceryProductsPage() {
 
                   <th className="px-5 py-3 text-left">Price</th>
 
-                  <th className="px-5 py-3 text-left">Stock</th>
-
                   <th className="px-5 py-3 text-left">Status</th>
 
                   <th className="px-5 py-3 text-center">Actions</th>
@@ -304,23 +305,7 @@ export default function GroceryProductsPage() {
                     <td className="px-5 py-4">₹{product.price}</td>
 
                     <td className="px-5 py-4">
-                      {product.stock}
-                      <br />
-                      <span className="text-sm text-gray-500">
-                        ({product.quantity} {product.unit})
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      {product.isAvailable ? (
-                        <span className="text-green-600 font-medium">
-                          Available
-                        </span>
-                      ) : (
-                        <span className="text-red-600 font-medium">
-                          Out of Stock
-                        </span>
-                      )}
+                      {product.isAvailable ? "Available" : "OutOfStock"}
                     </td>
 
                     <td
@@ -399,10 +384,6 @@ export default function GroceryProductsPage() {
 
                     <p className="font-medium mt-1">₹{product.price}</p>
                   </div>
-                </div>
-
-                <div className="text-sm">
-                  Stock: {product.stock} ({product.quantity} {product.unit})
                 </div>
 
                 <div>

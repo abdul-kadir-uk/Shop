@@ -119,7 +119,7 @@ export const getAllGroceries = async (req, res) => {
 
     const products = await GroceryProduct.find(match)
       .select(
-        "slug productName brand productCategory productSubCategory price discountPrice quantity unit averageRating totalRatings totalSold mainImage",
+        "slug productName brand productCategory productSubCategory price discountPrice quantity unit averageRating totalRatings totalSold mainImage isAvailable",
       )
       .sort(sortStage)
       .skip(skip)

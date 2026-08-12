@@ -1,3 +1,4 @@
+// controllers/checkoutController.js
 import Customer from "../models/Customer.js";
 import City from "../models/City.js";
 
@@ -55,7 +56,7 @@ export const getCheckoutSummary = async (req, res) => {
     const cities = await City.find({
       isActive: true,
     })
-      .select("name state")
+      .select("name state deliveryCharge")
       .sort({ name: 1 });
 
     return res.status(200).json({

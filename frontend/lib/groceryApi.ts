@@ -16,8 +16,6 @@ const groceryApi = axios.create({
 // ======================================================
 
 export const getAllGroceries = async (params = {}) => {
-  console.log("Sending params:", params);
-
   const { data } = await groceryApi.get("/", {
     params,
   });

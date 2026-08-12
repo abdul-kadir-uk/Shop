@@ -1,6 +1,15 @@
 // models/Order.js
 import mongoose from "mongoose";
 
+const ORDER_STATUSES = [
+  "ordered",
+  "confirmed",
+  "notAvailable",
+  "outForDelivery",
+  "delivered",
+  "cancelled",
+];
+
 const orderItemSchema = new mongoose.Schema(
   {
     product: {
@@ -72,16 +81,14 @@ const orderItemSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+
+    // --------------------------------------------------
+    // Item-level status
+    // --------------------------------------------------
+    // Seller/customer item status.
     orderStatus: {
       type: String,
-      enum: [
-        "ordered",
-        "confirmed",
-        "notAvailable",
-        "outForDelivery",
-        "delivered",
-        "cancelled",
-      ],
+      enum: ORDER_STATUSES,
       default: "ordered",
     },
 
@@ -112,6 +119,7 @@ const orderSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+
     customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
@@ -119,6 +127,18 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
+    // --------------------------------------------------
+    // Parent / overall order status
+    // --------------------------------------------------
+    orderStatus: {
+      type: String,
+      enum: ORDER_STATUSES,
+      default: "ordered",
+    },
+
+    // --------------------------------------------------
+    // All products belonging to this customer order
+    // --------------------------------------------------
     items: [orderItemSchema],
 
     shippingAddress: {

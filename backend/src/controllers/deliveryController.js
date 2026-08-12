@@ -1,21 +1,190 @@
+// controllers/deliveryController.js
 import DeliveryPartner from "../models/DeliveryPartner.js";
 import User from "../models/User.js";
+import Order from "../models/Order.js";
 
-// Seller Dashboard
+import { ORDER_STATUS, PAYMENT_STATUS } from "../constants/orderStatus.js";
+
+// ======================================================
+// Get Delivery Dashboard
+// ======================================================
+// Returns all dashboard data in a single API response.
+//
+// Includes:
+// - Delivery partner information
+// - Available deliveries count
+// - Pending deliveries count
+// - Completed deliveries count
+// - Total assigned deliveries
+// - Recent pending deliveries
+// ======================================================
+
 export const getDeliveryDashboard = async (req, res) => {
   try {
-    const seller = await DeliveryPartner.findOne({
-      userId: req.user._id,
-    });
+    // --------------------------------------------------
+    // Make sure logged-in user is a delivery partner
+    // --------------------------------------------------
 
-    res.status(200).json({
+    if (req.user.role !== "delivery") {
+      return res.status(403).json({
+        success: false,
+        message: "Only delivery partners can access dashboard.",
+      });
+    }
+
+    // --------------------------------------------------
+    // Find delivery partner
+    // --------------------------------------------------
+
+    const deliveryPartner = await DeliveryPartner.findOne({
+      userId: req.user._id,
+    }).lean();
+
+    if (!deliveryPartner) {
+      return res.status(404).json({
+        success: false,
+        message: "Delivery partner not found.",
+      });
+    }
+
+    const deliveryPartnerId = deliveryPartner._id;
+
+    // --------------------------------------------------
+    // Dashboard counts
+    // --------------------------------------------------
+
+    const [availableDeliveries, pendingDeliveries, completedDeliveries] =
+      await Promise.all([
+        // ----------------------------------------------
+        // Available
+        // Confirmed items without delivery partner
+        // ----------------------------------------------
+
+        Order.countDocuments({
+          items: {
+            $elemMatch: {
+              orderStatus: ORDER_STATUS.CONFIRMED,
+              deliveryPartner: null,
+            },
+          },
+        }),
+
+        // ----------------------------------------------
+        // Pending
+        // This delivery partner's confirmed/outForDelivery
+        // items
+        // ----------------------------------------------
+
+        Order.countDocuments({
+          items: {
+            $elemMatch: {
+              deliveryPartner: deliveryPartnerId,
+              orderStatus: {
+                $in: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.OUT_FOR_DELIVERY],
+              },
+            },
+          },
+        }),
+
+        // ----------------------------------------------
+        // Completed
+        // This delivery partner's delivered/cancelled
+        // items
+        // ----------------------------------------------
+
+        Order.countDocuments({
+          items: {
+            $elemMatch: {
+              deliveryPartner: deliveryPartnerId,
+              orderStatus: {
+                $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED],
+              },
+            },
+          },
+        }),
+      ]);
+
+    // --------------------------------------------------
+    // Get recent pending deliveries
+    // --------------------------------------------------
+
+    const recentOrders = await Order.find({
+      items: {
+        $elemMatch: {
+          deliveryPartner: deliveryPartnerId,
+          orderStatus: {
+            $in: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.OUT_FOR_DELIVERY],
+          },
+        },
+      },
+    })
+      .populate("customer", "name email mobile")
+      .populate("items.seller", "shopName address")
+      .populate("items.product", "productName slug")
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    // --------------------------------------------------
+    // Only return this delivery partner's items
+    // --------------------------------------------------
+
+    const recentDeliveries = recentOrders
+      .map((order) => {
+        const myItems = order.items.filter(
+          (item) =>
+            item.deliveryPartner &&
+            item.deliveryPartner.toString() === deliveryPartnerId.toString() &&
+            [ORDER_STATUS.CONFIRMED, ORDER_STATUS.OUT_FOR_DELIVERY].includes(
+              item.orderStatus,
+            ),
+        );
+
+        if (myItems.length === 0) {
+          return null;
+        }
+
+        return {
+          _id: order._id,
+          orderNumber: order.orderNumber,
+          customer: order.customer,
+          shippingAddress: order.shippingAddress,
+          deliveryContact: order.deliveryContact,
+          items: myItems,
+          pricing: order.pricing,
+          createdAt: order.createdAt,
+        };
+      })
+      .filter(Boolean);
+
+    // --------------------------------------------------
+    // Total assigned deliveries
+    // --------------------------------------------------
+
+    const totalAssigned = pendingDeliveries + completedDeliveries;
+
+    // --------------------------------------------------
+    // Response
+    // --------------------------------------------------
+
+    return res.status(200).json({
       success: true,
-      seller,
+
+      dashboard: {
+        availableDeliveries,
+        pendingDeliveries,
+        completedDeliveries,
+        totalAssigned,
+      },
+
+      recentDeliveries,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("Get Delivery Dashboard Error:", error);
+
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Failed to fetch delivery dashboard.",
     });
   }
 };

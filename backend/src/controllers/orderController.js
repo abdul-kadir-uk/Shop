@@ -1,3 +1,5 @@
+// controllers/orderController.js
+
 import Customer from "../models/Customer.js";
 import City from "../models/City.js";
 import Cart from "../models/Cart.js";
@@ -14,6 +16,9 @@ import { generateOrderNumber } from "../utils/generateOrderNumber.js";
 /* ==========================================================
    Place Order
    POST /api/orders
+
+   Customer gets ONE order containing ALL cart items.
+   Seller information remains inside each item.
 ========================================================== */
 
 export const placeOrder = async (req, res) => {
@@ -22,7 +27,10 @@ export const placeOrder = async (req, res) => {
   try {
     session.startTransaction();
 
+    // --------------------------------------------------
     // Only customers
+    // --------------------------------------------------
+
     if (req.user.role !== "customer") {
       await session.abortTransaction();
       session.endSession();
@@ -33,7 +41,10 @@ export const placeOrder = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
     // Customer
+    // --------------------------------------------------
+
     const customer = await Customer.findOne({
       userId: req.user._id,
     }).select("name email mobile address");
@@ -59,7 +70,10 @@ export const placeOrder = async (req, res) => {
       paymentMethod,
     } = req.body;
 
+    // --------------------------------------------------
     // Payment
+    // --------------------------------------------------
+
     if (paymentMethod !== "COD") {
       await session.abortTransaction();
       session.endSession();
@@ -70,7 +84,10 @@ export const placeOrder = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
     // City
+    // --------------------------------------------------
+
     if (!cityId) {
       await session.abortTransaction();
       session.endSession();
@@ -96,7 +113,10 @@ export const placeOrder = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
     // Address
+    // --------------------------------------------------
+
     const shippingAddress = address?.trim() || customer.address?.trim();
 
     if (!shippingAddress) {
@@ -109,12 +129,17 @@ export const placeOrder = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
     // Mobile
-    const primaryMobile = customer.mobile;
+    // --------------------------------------------------
 
+    const primaryMobile = customer.mobile;
     const secondaryMobile = alternateMobile?.trim() || "";
 
-    // Build Summary
+    // --------------------------------------------------
+    // Build Checkout Summary
+    // --------------------------------------------------
+
     let summary;
 
     if (type === "buyNow") {
@@ -137,76 +162,91 @@ export const placeOrder = async (req, res) => {
       });
     }
 
-    const createdOrders = [];
+    // --------------------------------------------------
+    // Generate ONE order number
+    // --------------------------------------------------
 
-    // Create one order per product
-    for (const item of summary.items) {
-      const orderNumber = await generateOrderNumber();
+    const orderNumber = await generateOrderNumber();
 
-      const [order] = await Order.create(
-        [
-          {
-            customer: customer._id,
+    // --------------------------------------------------
+    // Prepare ALL items inside ONE order
+    // --------------------------------------------------
 
-            orderNumber,
+    const orderItems = summary.items.map((item) => ({
+      product: item.product,
+      seller: item.seller,
 
-            items: [
-              {
-                product: item.product,
-                seller: item.seller,
-                variantIndex: item.variantIndex,
-                quantity: item.quantity,
+      variantIndex: item.variantIndex,
+      quantity: item.quantity,
 
-                productName: item.productName,
-                brand: item.brand,
-                image: item.image,
-                variant: item.variant,
+      productName: item.productName,
+      brand: item.brand,
+      image: item.image,
+      variant: item.variant,
 
-                price: item.price,
-                discountPrice: item.discountPrice,
+      price: item.price,
+      discountPrice: item.discountPrice,
 
-                subtotal: item.subtotal,
+      subtotal: item.subtotal,
 
-                orderStatus: "ordered",
-              },
-            ],
+      // Each item starts as ordered.
+      // Seller can later update this item independently.
+      orderStatus: "ordered",
 
-            shippingAddress: {
-              address: shippingAddress,
+      deliveryPartner: null,
+      acceptedAt: null,
+      deliveredAt: null,
+    }));
 
-              city: {
-                _id: city._id,
-                name: city.name,
-                state: city.state,
-              },
+    // --------------------------------------------------
+    // Create ONE Order
+    // --------------------------------------------------
+
+    const [order] = await Order.create(
+      [
+        {
+          customer: customer._id,
+
+          orderNumber,
+
+          items: orderItems,
+
+          shippingAddress: {
+            address: shippingAddress,
+
+            city: {
+              _id: city._id,
+              name: city.name,
+              state: city.state,
             },
-
-            deliveryContact: {
-              primaryMobile,
-              alternateMobile: secondaryMobile,
-            },
-
-            pricing: {
-              subtotal: item.subtotal,
-              discount: item.discount || 0,
-              deliveryCharge: 0,
-              total: item.subtotal,
-            },
-
-            paymentMethod,
-            paymentStatus: "pending",
           },
-        ],
-        { session },
-      );
 
-      createdOrders.push({
-        id: order._id,
-        orderNumber: order.orderNumber,
-      });
-    }
+          deliveryContact: {
+            primaryMobile,
+            alternateMobile: secondaryMobile,
+          },
 
+          pricing: {
+            subtotal: summary.pricing.subtotal,
+            discount: summary.pricing.discount || 0,
+            deliveryCharge: summary.pricing.deliveryCharge || 0,
+            total: summary.pricing.total,
+          },
+
+          paymentMethod,
+          paymentStatus: "pending",
+
+          // Outer order status
+          orderStatus: "ordered",
+        },
+      ],
+      { session },
+    );
+
+    // --------------------------------------------------
     // Clear cart
+    // --------------------------------------------------
+
     if (type === "cart") {
       await Cart.deleteOne(
         {
@@ -221,8 +261,15 @@ export const placeOrder = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Orders placed successfully.",
-      orders: createdOrders,
+      message: "Order placed successfully.",
+
+      order: {
+        id: order._id,
+        orderNumber: order.orderNumber,
+        orderStatus: order.orderStatus,
+        itemCount: order.items.length,
+        pricing: order.pricing,
+      },
     });
   } catch (error) {
     await session.abortTransaction();
@@ -237,11 +284,19 @@ export const placeOrder = async (req, res) => {
   }
 };
 
-// get my orders
+/* ==========================================================
+   Get My Orders
+   GET /api/orders/my-orders
+
+   Customer sees ONE order with ALL items.
+========================================================== */
 
 export const getMyOrders = async (req, res) => {
   try {
+    // --------------------------------------------------
     // Only customers
+    // --------------------------------------------------
+
     if (req.user.role !== "customer") {
       return res.status(403).json({
         success: false,
@@ -249,7 +304,10 @@ export const getMyOrders = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
     // Customer
+    // --------------------------------------------------
+
     const customer = await Customer.findOne({
       userId: req.user._id,
     });
@@ -261,10 +319,18 @@ export const getMyOrders = async (req, res) => {
       });
     }
 
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
+    // --------------------------------------------------
+    // Pagination
+    // --------------------------------------------------
+
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.max(Number(req.query.limit) || 10, 1);
 
     const skip = (page - 1) * limit;
+
+    // --------------------------------------------------
+    // Order-level status
+    // --------------------------------------------------
 
     const status = req.query.status || "";
 
@@ -273,47 +339,68 @@ export const getMyOrders = async (req, res) => {
     };
 
     if (status) {
-      query["items.orderStatus"] = status;
+      query.orderStatus = status;
     }
 
+    // --------------------------------------------------
+    // Count actual customer orders
+    // --------------------------------------------------
+
     const totalOrders = await Order.countDocuments(query);
+
+    // --------------------------------------------------
+    // Fetch orders
+    // --------------------------------------------------
 
     const orders = await Order.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
-    const formattedOrders = orders.map((order) => {
-      const item = order.items[0];
+    // --------------------------------------------------
+    // Return ALL items
+    // --------------------------------------------------
 
-      return {
-        _id: order._id,
+    const formattedOrders = orders.map((order) => ({
+      _id: order._id,
 
-        orderNumber: order.orderNumber,
+      orderNumber: order.orderNumber,
 
-        product: {
-          name: item.productName,
+      orderStatus: order.orderStatus,
 
-          image: item.image,
+      products: order.items.map((item) => ({
+        productId: item.product,
 
-          brand: item.brand,
+        name: item.productName,
 
-          quantity: item.quantity,
+        image: item.image,
 
-          variant: item.variant,
-        },
+        brand: item.brand,
 
-        pricing: order.pricing,
+        quantity: item.quantity,
 
-        paymentMethod: order.paymentMethod,
+        variant: item.variant,
 
-        paymentStatus: order.paymentStatus,
+        price: item.price,
+
+        discountPrice: item.discountPrice,
+
+        subtotal: item.subtotal,
 
         orderStatus: item.orderStatus,
+      })),
 
-        createdAt: order.createdAt,
-      };
-    });
+      itemCount: order.items.length,
+
+      pricing: order.pricing,
+
+      paymentMethod: order.paymentMethod,
+
+      paymentStatus: order.paymentStatus,
+
+      createdAt: order.createdAt,
+    }));
 
     return res.status(200).json({
       success: true,
@@ -341,11 +428,16 @@ export const getMyOrders = async (req, res) => {
 /* ==========================================================
    Get Single Order
    GET /api/orders/:orderId
+
+   Returns ALL items in the order.
 ========================================================== */
 
 export const getSingleOrder = async (req, res) => {
   try {
+    // --------------------------------------------------
     // Only customers
+    // --------------------------------------------------
+
     if (req.user.role !== "customer") {
       return res.status(403).json({
         success: false,
@@ -353,7 +445,10 @@ export const getSingleOrder = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
     // Customer
+    // --------------------------------------------------
+
     const customer = await Customer.findOne({
       userId: req.user._id,
     });
@@ -365,6 +460,10 @@ export const getSingleOrder = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
+    // Validate order ID
+    // --------------------------------------------------
+
     const { orderId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
@@ -374,10 +473,14 @@ export const getSingleOrder = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
+    // Find customer's order
+    // --------------------------------------------------
+
     const order = await Order.findOne({
       _id: orderId,
       customer: customer._id,
-    });
+    }).lean();
 
     if (!order) {
       return res.status(404).json({
@@ -385,8 +488,6 @@ export const getSingleOrder = async (req, res) => {
         message: "Order not found.",
       });
     }
-
-    const item = order.items[0];
 
     return res.status(200).json({
       success: true,
@@ -398,7 +499,9 @@ export const getSingleOrder = async (req, res) => {
 
         createdAt: order.createdAt,
 
-        product: {
+        orderStatus: order.orderStatus,
+
+        products: order.items.map((item) => ({
           productId: item.product,
 
           name: item.productName,
@@ -416,7 +519,15 @@ export const getSingleOrder = async (req, res) => {
           discountPrice: item.discountPrice,
 
           subtotal: item.subtotal,
-        },
+
+          orderStatus: item.orderStatus,
+
+          deliveryPartner: item.deliveryPartner,
+
+          acceptedAt: item.acceptedAt,
+
+          deliveredAt: item.deliveredAt,
+        })),
 
         shippingAddress: order.shippingAddress,
 
@@ -427,8 +538,6 @@ export const getSingleOrder = async (req, res) => {
         paymentMethod: order.paymentMethod,
 
         paymentStatus: order.paymentStatus,
-
-        orderStatus: item.orderStatus,
       },
     });
   } catch (error) {
@@ -444,11 +553,23 @@ export const getSingleOrder = async (req, res) => {
 /* ==========================================================
    Cancel Order
    PATCH /api/orders/:orderId/cancel
+
+   IMPORTANT:
+   Customer cancellation is ORDER LEVEL.
+
+   If customer cancels:
+   - Outer order -> cancelled
+   - Every item -> cancelled
+
+   No individual item cancellation.
 ========================================================== */
 
 export const cancelOrder = async (req, res) => {
   try {
+    // --------------------------------------------------
     // Only customers
+    // --------------------------------------------------
+
     if (req.user.role !== "customer") {
       return res.status(403).json({
         success: false,
@@ -456,7 +577,10 @@ export const cancelOrder = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
     // Customer
+    // --------------------------------------------------
+
     const customer = await Customer.findOne({
       userId: req.user._id,
     });
@@ -468,6 +592,10 @@ export const cancelOrder = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
+    // Validate order ID
+    // --------------------------------------------------
+
     const { orderId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
@@ -476,6 +604,10 @@ export const cancelOrder = async (req, res) => {
         message: "Invalid order id.",
       });
     }
+
+    // --------------------------------------------------
+    // Find customer's order
+    // --------------------------------------------------
 
     const order = await Order.findOne({
       _id: orderId,
@@ -489,41 +621,60 @@ export const cancelOrder = async (req, res) => {
       });
     }
 
-    const item = order.items[0];
-
+    // --------------------------------------------------
     // Already cancelled
-    if (item.orderStatus === "cancelled") {
+    // --------------------------------------------------
+
+    if (order.orderStatus === "cancelled") {
       return res.status(400).json({
         success: false,
         message: "Order is already cancelled.",
       });
     }
 
-    // Cannot cancel after dispatch/delivery
-    if (
-      ["outForDelivery", "delivered", "notAvailable"].includes(item.orderStatus)
-    ) {
+    // --------------------------------------------------
+    // Check every item
+    //
+    // Customer can cancel the complete order only if
+    // every item is still in ordered/confirmed state.
+    // --------------------------------------------------
+
+    const nonCancellableItem = order.items.find(
+      (item) =>
+        !["ordered", "confirmed", "notAvailable"].includes(item.orderStatus),
+    );
+
+    if (nonCancellableItem) {
       return res.status(400).json({
         success: false,
-        message: `Order cannot be cancelled because it is ${item.orderStatus}.`,
+        message:
+          "Order cannot be cancelled now but dont worry you can refuse delivery at doorStep.",
       });
     }
 
-    // Allow only ordered or confirmed
-    if (!["ordered", "confirmed"].includes(item.orderStatus)) {
-      return res.status(400).json({
-        success: false,
-        message: "Order cannot be cancelled.",
-      });
-    }
+    // --------------------------------------------------
+    // Cancel entire order
+    // --------------------------------------------------
 
-    item.orderStatus = "cancelled";
+    order.orderStatus = "cancelled";
+
+    // Cancel every item
+    order.items.forEach((item) => {
+      item.orderStatus = "cancelled";
+    });
 
     await order.save();
 
     return res.status(200).json({
       success: true,
       message: "Order cancelled successfully.",
+
+      order: {
+        _id: order._id,
+        orderNumber: order.orderNumber,
+        orderStatus: order.orderStatus,
+        itemCount: order.items.length,
+      },
     });
   } catch (error) {
     console.error("Cancel Order Error:", error);

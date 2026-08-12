@@ -61,7 +61,7 @@ router.get(
 // ======================================================
 
 router.patch(
-  "/orders/:orderId/items/:itemIndex/accept",
+  "/orders/:orderId/accept",
   protect,
   requireApprovedDelivery,
   acceptDeliveryOrder,
@@ -92,7 +92,7 @@ router.get("/my-orders", protect, requireApprovedDelivery, getMyDeliveryOrders);
 // ======================================================
 
 router.patch(
-  "/orders/:orderId/items/:itemIndex/status",
+  "/orders/:orderId/status",
   protect,
   requireApprovedDelivery,
   updateDeliveryOrderStatus,

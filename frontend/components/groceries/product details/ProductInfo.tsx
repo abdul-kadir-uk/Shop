@@ -1,9 +1,17 @@
+// components/groceries/product details/ProductInfo.tsx
+
 "use client";
 
+import { useState } from "react";
 import { ShoppingBag, ShoppingCart } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+import { addToCart } from "@/lib/cartApi";
+import { isLoggedIn } from "@/lib/auth";
 
 type ProductInfoProps = {
   product: {
+    _id: string;
     productName: string;
     description: string;
 
@@ -24,6 +32,12 @@ type ProductInfoProps = {
 };
 
 export default function ProductInfo({ product }: ProductInfoProps) {
+  const router = useRouter();
+
+  const [adding, setAdding] = useState(false);
+  const [buying, setBuying] = useState(false);
+  const [message, setMessage] = useState("");
+
   const hasDiscount =
     product.discountPrice !== null && product.discountPrice < product.price;
 
@@ -33,11 +47,77 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       )
     : 0;
 
+  // ======================================================
+  // Add To Cart
+  // ======================================================
+
+  const handleAddToCart = async () => {
+    // Check Login
+    if (!isLoggedIn()) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      setAdding(true);
+      setMessage("");
+
+      const data = await addToCart(product._id, 1, -1);
+
+      if (data.success) {
+        setMessage("Added to cart");
+
+        // Tell GroceryNavbar to refresh count
+        window.dispatchEvent(new Event("cart-updated"));
+
+        setTimeout(() => {
+          setMessage("");
+        }, 2000);
+      } else {
+        setMessage(data.message || "Failed to add to cart");
+      }
+    } catch (error: any) {
+      console.error("Product Details Add To Cart Error:", error);
+
+      setMessage(error?.response?.data?.message || "Failed to add to cart");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // ======================================================
+  // Buy Now
+  // ======================================================
+
+  const handleBuyNow = () => {
+    // Check Login
+    if (!isLoggedIn()) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      setBuying(true);
+
+      const params = new URLSearchParams({
+        type: "buyNow",
+        productId: product._id,
+        quantity: "1",
+        variantIndex: "-1",
+      });
+
+      router.push(`/groceries/checkout?${params.toString()}`);
+    } catch (error) {
+      console.error("Product Details Buy Now Error:", error);
+      setBuying(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Product Name */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 md:text-4xl">
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
           {product.productName}
         </h1>
 
@@ -55,11 +135,13 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       <div className="space-y-3 rounded-xl border bg-white p-5">
         <div className="flex justify-between border-b pb-2">
           <span className="text-gray-500">Category</span>
+
           <span className="font-medium">{product.productCategory}</span>
         </div>
 
         <div className="flex justify-between border-b pb-2">
           <span className="text-gray-500">Product Type</span>
+
           <span className="font-medium">
             {product.productSubCategory === "closed-products"
               ? "Packet"
@@ -69,25 +151,10 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
         <div className="flex justify-between border-b pb-2">
           <span className="text-gray-500">Quantity</span>
+
           <span className="font-medium">
             {product.quantity} {product.unit}
           </span>
-        </div>
-
-        <div className="flex justify-between">
-          <span className="text-gray-500">Availability</span>
-
-          {product.trackInventory ? (
-            product.stock > 0 ? (
-              <span className="font-semibold text-green-600">
-                In Stock ({product.stock})
-              </span>
-            ) : (
-              <span className="font-semibold text-red-600">Out of Stock</span>
-            )
-          ) : (
-            <span className="font-semibold text-green-600">Available</span>
-          )}
         </div>
       </div>
 
@@ -114,16 +181,37 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
       {/* Buttons */}
       <div className="grid grid-cols-2 gap-4">
-        <button className="flex h-12 items-center justify-center gap-2 rounded-lg bg-green-600 font-semibold text-white transition hover:bg-green-700">
+        {/* Buy Now */}
+        <button
+          type="button"
+          disabled={adding || buying}
+          onClick={handleBuyNow}
+          className="flex h-12 items-center justify-center gap-2 rounded-lg bg-green-600 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
           <ShoppingBag size={20} />
-          Buy Now
+
+          {buying ? "Loading..." : "Buy Now"}
         </button>
 
-        <button className="flex h-12 items-center justify-center gap-2 rounded-lg border border-green-600 font-semibold text-green-600 transition hover:bg-green-50">
+        {/* Add to Cart */}
+        <button
+          type="button"
+          disabled={adding || buying}
+          onClick={handleAddToCart}
+          className="flex h-12 items-center justify-center gap-2 rounded-lg border border-green-600 font-semibold text-green-600 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
           <ShoppingCart size={20} />
-          Add to Cart
+
+          {adding ? "Adding..." : "Add to Cart"}
         </button>
       </div>
+
+      {/* Cart Message */}
+      {message && (
+        <p className="text-center text-sm font-medium text-green-600">
+          {message}
+        </p>
+      )}
 
       {/* Description */}
       <div className="rounded-xl border bg-white p-5">

@@ -81,21 +81,23 @@ export default function GroceryFilters({
               : "";
 
   return (
-    <section className="rounded-xl border bg-white p-3 shadow-sm">
+    <section className="w-full min-w-0 rounded-xl border bg-white p-2 shadow-sm">
       {/* Header */}
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between md:pointer-events-none"
+        className="flex w-full items-center justify-between lg:pointer-events-none"
       >
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-green-600" />
-          <h2 className="text-base font-semibold text-gray-800">
+          <Filter className="h-4 w-4 text-gray-600" />
+
+          <span className="text-sm font-semibold text-gray-800">
             Filter Products
-          </h2>
+          </span>
         </div>
 
-        <div className="md:hidden">
+        {/* Toggle icon only below large */}
+        <div className="lg:hidden">
           {open ? (
             <ChevronUp className="h-5 w-5 text-gray-600" />
           ) : (
@@ -105,8 +107,8 @@ export default function GroceryFilters({
       </button>
 
       {/* Filters */}
-      <div className={`mt-3 ${open ? "block" : "hidden"} md:block`}>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`mt-3 ${open ? "block" : "hidden"} lg:block`}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {/* Category */}
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-700">

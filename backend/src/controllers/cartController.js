@@ -1,3 +1,4 @@
+// controllers/cartController.js
 import mongoose from "mongoose";
 import Cart from "../models/Cart.js";
 import GroceryProduct from "../models/GroceryProduct.js";

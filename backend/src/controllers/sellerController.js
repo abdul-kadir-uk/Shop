@@ -1,21 +1,128 @@
 import User from "../models/User.js";
 import Seller from "../models/Seller.js";
+import GroceryProduct from "../models/GroceryProduct.js";
+import Order from "../models/Order.js";
+import { ORDER_STATUS, PAYMENT_STATUS } from "../constants/orderStatus.js";
 
+// ==========================================================
 // Seller Dashboard
+// GET /api/seller/dashboard
+// ==========================================================
+
 export const getSellerDashboard = async (req, res) => {
   try {
+    // ------------------------------------------------------
+    // Find seller
+    // ------------------------------------------------------
+
     const seller = await Seller.findOne({
       userId: req.user._id,
     });
 
-    res.status(200).json({
+    if (!seller) {
+      return res.status(404).json({
+        success: false,
+        message: "Seller not found.",
+      });
+    }
+
+    // ------------------------------------------------------
+    // Total Products
+    // Exclude soft-deleted products
+    // ------------------------------------------------------
+
+    const totalProductsPromise = GroceryProduct.countDocuments({
+      sellerId: seller._id,
+      isDeleted: false,
+    });
+
+    // ------------------------------------------------------
+    // Total Orders
+    // Any order containing this seller's products
+    // ------------------------------------------------------
+
+    const totalOrdersPromise = Order.countDocuments({
+      "items.seller": seller._id,
+    });
+
+    // ------------------------------------------------------
+    // Pending Orders
+    // Seller items whose status is "ordered"
+    // ------------------------------------------------------
+
+    const pendingOrdersPromise = Order.countDocuments({
+      items: {
+        $elemMatch: {
+          seller: seller._id,
+          orderStatus: ORDER_STATUS.ORDERED,
+        },
+      },
+    });
+
+    // ------------------------------------------------------
+    // Revenue
+    //
+    // Only confirmed seller items are counted.
+    //
+    // We use subtotal because it already represents:
+    // quantity × actual item price
+    // ------------------------------------------------------
+
+    const revenuePromise = Order.aggregate([
+      {
+        $unwind: "$items",
+      },
+
+      {
+        $match: {
+          "items.seller": seller._id,
+          "items.orderStatus": ORDER_STATUS.DELIVERED,
+          paymentStatus: PAYMENT_STATUS.PAID,
+        },
+      },
+
+      {
+        $group: {
+          _id: null,
+          revenue: {
+            $sum: "$items.subtotal",
+          },
+        },
+      },
+    ]);
+
+    // ------------------------------------------------------
+    // Run all queries together
+    // ------------------------------------------------------
+
+    const [totalProducts, totalOrders, pendingOrders, revenueResult] =
+      await Promise.all([
+        totalProductsPromise,
+        totalOrdersPromise,
+        pendingOrdersPromise,
+        revenuePromise,
+      ]);
+
+    const revenue = revenueResult.length > 0 ? revenueResult[0].revenue : 0;
+
+    // ------------------------------------------------------
+    // Response
+    // ------------------------------------------------------
+
+    return res.status(200).json({
       success: true,
-      seller,
+
+      dashboard: {
+        totalProducts,
+        totalOrders,
+        revenue,
+        pendingOrders,
+      },
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Failed to fetch seller dashboard.",
     });
   }
 };
