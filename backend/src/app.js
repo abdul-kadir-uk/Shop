@@ -12,6 +12,7 @@ import cartRoutes from "./routes/cartRoutes.js";
 import checkoutRoutes from "./routes/checkoutRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import cityRoutes from "./routes/cityRoutes.js";
+import telegramRoutes from "./routes/telegramRoutes.js";
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/checkout", checkoutRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/cities", cityRoutes);
+app.use("/api/telegram", telegramRoutes);
 
 // Health Check Route
 app.get("/", (req, res) => {

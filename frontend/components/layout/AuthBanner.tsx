@@ -14,8 +14,7 @@ export default function AuthBanner() {
           <h2 className="font-semibold text-lg">Welcome to Aliauf Store</h2>
 
           <p className="text-sm text-green-100">
-            Sign up or login to manage orders, save addresses and track
-            deliveries.
+            Sign up or login to place orders.
           </p>
         </div>
 

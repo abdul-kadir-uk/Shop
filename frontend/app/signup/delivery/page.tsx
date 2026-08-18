@@ -1,8 +1,15 @@
+// app/signup/delivery/page.tsx
+
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+
+interface City {
+  _id: string;
+  name: string;
+}
 
 export default function DeliverySignupPage() {
   const router = useRouter();
@@ -17,11 +24,45 @@ export default function DeliverySignupPage() {
     securityQuestion: "",
     securityAnswer: "",
     address: "",
+    cityId: "",
   });
 
+  const [cities, setCities] = useState<City[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(true);
+
   const [aadhaarFile, setAadhaarFile] = useState<File | null>(null);
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // ---------------------------------
+  // Fetch Active Cities
+  // ---------------------------------
+
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        setIsLoadingCities(true);
+
+        const { data } = await axios.get("http://localhost:5000/api/cities");
+
+        if (data.success) {
+          setCities(data.cities || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch cities", error);
+        setError("Unable to load cities.");
+      } finally {
+        setIsLoadingCities(false);
+      }
+    };
+
+    fetchCities();
+  }, []);
+
+  // ---------------------------------
+  // Handle Form Change
+  // ---------------------------------
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -34,10 +75,28 @@ export default function DeliverySignupPage() {
     });
   };
 
+  // ---------------------------------
+  // Handle Aadhaar File
+  // ---------------------------------
+
+  const handleAadhaarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+
+    setAadhaarFile(file);
+  };
+
+  // ---------------------------------
+  // Submit
+  // ---------------------------------
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     setError("");
+
+    // ---------------------------------
+    // Required Fields
+    // ---------------------------------
 
     if (
       !formData.name ||
@@ -48,51 +107,117 @@ export default function DeliverySignupPage() {
       !formData.aadhaarNumber ||
       !formData.securityQuestion ||
       !formData.securityAnswer ||
-      !formData.address
+      !formData.address ||
+      !formData.cityId
     ) {
       setError("Please fill all fields.");
       return;
     }
+
+    // ---------------------------------
+    // Password
+    // ---------------------------------
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
+    // ---------------------------------
+    // Mobile
+    // ---------------------------------
+
     if (formData.mobileNumber.length !== 10) {
       setError("Mobile number must be 10 digits.");
       return;
     }
+
+    // ---------------------------------
+    // Aadhaar Number
+    // ---------------------------------
 
     if (formData.aadhaarNumber.length !== 12) {
       setError("Aadhaar number must be 12 digits.");
       return;
     }
 
+    // ---------------------------------
+    // Aadhaar Document
+    // ---------------------------------
+
     if (!aadhaarFile) {
       setError("Please upload Aadhaar document.");
+      return;
+    }
+
+    // ---------------------------------
+    // Frontend File Validation
+    // ---------------------------------
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "application/pdf",
+    ];
+
+    if (!allowedTypes.includes(aadhaarFile.type)) {
+      setError("Only JPG, JPEG, PNG and PDF Aadhaar documents are allowed.");
+      return;
+    }
+
+    // ---------------------------------
+    // File Size
+    // ---------------------------------
+
+    if (aadhaarFile.size > 10 * 1024 * 1024) {
+      setError("Aadhaar document must be less than 10 MB.");
       return;
     }
 
     try {
       setLoading(true);
 
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/delivery/signup",
-        {
-          name: formData.name,
-          email: formData.email,
-          mobile: formData.mobileNumber,
-          password: formData.password,
-          aadhaarNumber: formData.aadhaarNumber,
-          aadhaarDocument: aadhaarFile.name,
-          address: formData.address,
-          securityQuestion: formData.securityQuestion,
-          securityAnswer: formData.securityAnswer.trim().toLowerCase(),
-        },
+      // ---------------------------------
+      // Create Multipart FormData
+      // ---------------------------------
+
+      const data = new FormData();
+
+      data.append("name", formData.name);
+      data.append("email", formData.email);
+      data.append("mobile", formData.mobileNumber);
+      data.append("password", formData.password);
+
+      data.append("aadhaarNumber", formData.aadhaarNumber);
+
+      data.append("securityQuestion", formData.securityQuestion);
+
+      data.append(
+        "securityAnswer",
+        formData.securityAnswer.trim().toLowerCase(),
       );
 
-      if (data.success) {
+      data.append("address", formData.address);
+
+      data.append("cityId", formData.cityId);
+
+      // ---------------------------------
+      // Actual Aadhaar File
+      // ---------------------------------
+
+      data.append("aadhaarDocument", aadhaarFile);
+
+      // ---------------------------------
+      // API Request
+      // ---------------------------------
+
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/delivery/signup",
+        data,
+      );
+
+      if (response.data.success) {
         router.push("/signup/delivery/under-review");
       }
     } catch (error: any) {
@@ -182,9 +307,39 @@ export default function DeliverySignupPage() {
             <input
               type="file"
               accept=".jpg,.jpeg,.png,.pdf"
-              onChange={(e) => setAadhaarFile(e.target.files?.[0] || null)}
+              onChange={handleAadhaarFileChange}
               className="w-full border rounded-xl p-3"
             />
+
+            {aadhaarFile && (
+              <p className="mt-2 text-sm text-gray-500">
+                Selected: {aadhaarFile.name}
+              </p>
+            )}
+          </div>
+
+          {/* City */}
+
+          <div>
+            <label className="block mb-2 font-medium">Select City</label>
+
+            <select
+              name="cityId"
+              value={formData.cityId}
+              onChange={handleChange}
+              disabled={isLoadingCities}
+              className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+            >
+              <option value="">
+                {isLoadingCities ? "Loading cities..." : "Select City"}
+              </option>
+
+              {cities.map((city) => (
+                <option key={city._id} value={city._id}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <select
@@ -194,9 +349,13 @@ export default function DeliverySignupPage() {
             className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <option value="">Select Security Question</option>
+
             <option value="pet">What was your first pet's name?</option>
+
             <option value="school">What was your primary school name?</option>
+
             <option value="city">In which city were you born?</option>
+
             <option value="teacher">
               What was your favorite teacher's name?
             </option>

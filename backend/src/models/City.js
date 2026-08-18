@@ -1,3 +1,4 @@
+// City modal
 import mongoose from "mongoose";
 
 const citySchema = new mongoose.Schema(

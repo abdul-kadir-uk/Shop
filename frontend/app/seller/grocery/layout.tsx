@@ -1,16 +1,48 @@
 // app/seller/grocery/layout.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import GrocerySidebar from "@/components/seller/GrocerySidebar";
 import GroceryHeader from "@/components/seller/GroceryHeader";
+import { useAuth } from "@/context/authContext";
 
 export default function GroceryLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+
+  const { loading, isLoggedIn } = useAuth();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    // Wait until auth state is checked
+    if (loading) return;
+
+    // User is not logged in → send to login
+    if (!isLoggedIn) {
+      router.replace("/login");
+    }
+  }, [loading, isLoggedIn, router]);
+
+  // While authentication is being checked,
+  // don't render the protected page.
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-gray-600">Checking authentication...</div>
+      </div>
+    );
+  }
+
+  // Prevent protected UI from flashing before redirect
+  if (!isLoggedIn) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">

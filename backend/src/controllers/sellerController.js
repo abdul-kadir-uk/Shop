@@ -1,3 +1,4 @@
+// controllers/sellerController.js
 import User from "../models/User.js";
 import Seller from "../models/Seller.js";
 import GroceryProduct from "../models/GroceryProduct.js";

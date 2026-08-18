@@ -75,7 +75,7 @@ export default function GroceryDashboard() {
   if (error || !dashboard) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Grocery Dashboard</h1>
+        <h1 className="text-3xl font-bold">Seller Dashboard</h1>
 
         <div className="bg-white rounded-xl shadow border p-8 text-center">
           <p className="text-red-600">{error || "Unable to load dashboard."}</p>

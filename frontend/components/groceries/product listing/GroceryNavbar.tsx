@@ -61,7 +61,7 @@ export default function GroceryNavbar() {
           href="/groceries"
           className="text-lg font-bold text-green-600 sm:text-xl"
         >
-          Aliauf Grocery
+          aliauf.com
         </Link>
 
         {/* Desktop Menu */}

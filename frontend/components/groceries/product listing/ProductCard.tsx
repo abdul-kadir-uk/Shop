@@ -2,7 +2,6 @@
 
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ShoppingBag, ShoppingCart } from "lucide-react";
 import { useState } from "react";
@@ -124,10 +123,9 @@ export default function ProductCard({ product }: ProductCardProps) {
       <div className="overflow-hidden rounded-xl border bg-white shadow-sm transition hover:shadow-md">
         {/* Image */}
         <div className="relative aspect-square overflow-hidden bg-gray-100">
-          <Image
+          <img
             src={product.mainImage?.url || "https://placehold.co/600x600/png"}
             alt={product.productName}
-            fill
             loading="eager"
             sizes="
               (max-width: 399px) 100vw,

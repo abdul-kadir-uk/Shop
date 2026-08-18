@@ -1,8 +1,10 @@
+// app/login/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import axios from "axios";
 import api from "@/lib/api";
 
 import { useAuth } from "@/context/authContext";
@@ -106,10 +108,19 @@ export default function LoginPage() {
         default:
           alert("Unknown user role");
       }
-    } catch (error: any) {
-      console.error(error);
+    } catch (error: unknown) {
+      // Expected login errors are handled here.
+      // Do NOT use console.error(error), because Next.js
+      // development overlay can display the Axios error.
 
-      alert(error.response?.data?.message || "Something went wrong");
+      if (axios.isAxiosError(error)) {
+        const message =
+          error.response?.data?.message || "Login failed. Please try again.";
+
+        alert(message);
+      } else {
+        alert("Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

@@ -50,6 +50,28 @@ import {
   deleteCity,
 } from "../controllers/cityController.js";
 
+import {
+  createArea,
+  getAreas,
+  updateArea,
+  deleteArea,
+} from "../controllers/areaController.js";
+
+import {
+  assignDeliveryPartnerLocations,
+  getDeliveryPartnerAssignments,
+  updateDeliveryPartnerAssignments,
+  removeDeliveryPartnerAssignment,
+} from "../controllers/deliveryAssignmentController.js";
+
+import {
+  getAdminOrders,
+  getAdminSingleOrder,
+  updateAdminOrderStatus,
+  getAdminCompletedOrders,
+  getAdminCancelledOrders,
+} from "../controllers/adminOrderController.js";
+
 import adminMiddleware from "../middleware/adminMiddleware.js";
 import protect from "../middleware/authMiddleware.js";
 
@@ -133,6 +155,36 @@ router.delete(
 );
 
 // ======================
+// DELIVERY PARTNER LOCATION ASSIGNMENT
+// ======================
+router.post(
+  "/delivery-partners/:deliveryPartnerId/assignments",
+  protect,
+  adminMiddleware,
+  assignDeliveryPartnerLocations,
+);
+
+router.get(
+  "/delivery-partners/:deliveryPartnerId/assignments",
+  protect,
+  adminMiddleware,
+  getDeliveryPartnerAssignments,
+);
+
+router.put(
+  "/delivery-partners/:deliveryPartnerId/assignments",
+  protect,
+  adminMiddleware,
+  updateDeliveryPartnerAssignments,
+);
+
+router.delete(
+  "/delivery-partners/:deliveryPartnerId/assignments",
+  protect,
+  adminMiddleware,
+  removeDeliveryPartnerAssignment,
+);
+// ======================
 // REQUEST MANAGEMENT
 // ======================
 
@@ -212,5 +264,57 @@ router.patch("/cities/:id/status", protect, adminMiddleware, updateCityStatus);
 
 // Delete City
 router.delete("/cities/:id", protect, adminMiddleware, deleteCity);
+
+// ======================
+// AREA MANAGEMENT
+// ======================
+
+// Create Area
+router.post("/areas", protect, adminMiddleware, createArea);
+
+// Get All Areas
+// Optional query:
+// /api/admin/areas?cityId=CITY_ID
+router.get("/areas", protect, adminMiddleware, getAreas);
+
+// Update Area
+router.put("/areas/:areaId", protect, adminMiddleware, updateArea);
+
+// Deactivate Area
+router.delete("/areas/:areaId", protect, adminMiddleware, deleteArea);
+
+// ======================
+// ORDER MANAGEMENT
+// ======================
+
+// Active / available orders
+router.get("/orders", protect, adminMiddleware, getAdminOrders);
+
+// Completed orders
+router.get(
+  "/orders/completed",
+  protect,
+  adminMiddleware,
+  getAdminCompletedOrders,
+);
+
+// Cancelled orders
+router.get(
+  "/orders/cancelled",
+  protect,
+  adminMiddleware,
+  getAdminCancelledOrders,
+);
+
+// Single order
+router.get("/orders/:orderId", protect, adminMiddleware, getAdminSingleOrder);
+
+// Admin can update any order status
+router.patch(
+  "/orders/:orderId/status",
+  protect,
+  adminMiddleware,
+  updateAdminOrderStatus,
+);
 
 export default router;

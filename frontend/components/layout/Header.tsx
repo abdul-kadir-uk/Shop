@@ -6,7 +6,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/">
           <h1 className="text-2xl font-bold text-green-600 cursor-pointer">
-            Aliauf Store
+            aliauf.com
           </h1>
         </Link>
 

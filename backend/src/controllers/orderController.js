@@ -12,13 +12,15 @@ import {
 } from "../services/order/orderService.js";
 
 import { generateOrderNumber } from "../utils/generateOrderNumber.js";
+import {
+  notifySellersNewOrder,
+  notifyDeliveryPartnersNewOrder,
+} from "../services/telegramNotificationService.js";
+
+import { notifyCustomerOrderCancelled } from "../services/telegramNotificationService.js";
 
 /* ==========================================================
    Place Order
-   POST /api/orders
-
-   Customer gets ONE order containing ALL cart items.
-   Seller information remains inside each item.
 ========================================================== */
 
 export const placeOrder = async (req, res) => {
@@ -259,6 +261,15 @@ export const placeOrder = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // Telegram notifications must never affect order placement.
+    notifySellersNewOrder(order).catch((error) => {
+      console.error("Seller Telegram Notification Error:", error);
+    });
+
+    notifyDeliveryPartnersNewOrder(order).catch((error) => {
+      console.error("Delivery Telegram Notification Error:", error);
+    });
+
     return res.status(201).json({
       success: true,
       message: "Order placed successfully.",
@@ -284,13 +295,140 @@ export const placeOrder = async (req, res) => {
   }
 };
 
+// cancel order
+
+export const cancelOrder = async (req, res) => {
+  try {
+    // --------------------------------------------------
+    // Only customers
+    // --------------------------------------------------
+
+    if (req.user.role !== "customer") {
+      return res.status(403).json({
+        success: false,
+        message: "Only customers can cancel orders.",
+      });
+    }
+
+    // --------------------------------------------------
+    // Customer
+    // --------------------------------------------------
+
+    const customer = await Customer.findOne({
+      userId: req.user._id,
+    });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found.",
+      });
+    }
+
+    // --------------------------------------------------
+    // Validate order ID
+    // --------------------------------------------------
+
+    const { orderId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order id.",
+      });
+    }
+
+    // --------------------------------------------------
+    // Find customer's order
+    // --------------------------------------------------
+
+    const order = await Order.findOne({
+      _id: orderId,
+      customer: customer._id,
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      });
+    }
+
+    // --------------------------------------------------
+    // Already cancelled
+    // --------------------------------------------------
+
+    if (order.orderStatus === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Order is already cancelled.",
+      });
+    }
+
+    // --------------------------------------------------
+    // Check every item
+    //
+    // Customer can cancel the complete order only if
+    // every item is still in ordered/confirmed state.
+    // --------------------------------------------------
+
+    const nonCancellableItem = order.items.find(
+      (item) =>
+        !["ordered", "confirmed", "notAvailable"].includes(item.orderStatus),
+    );
+
+    if (nonCancellableItem) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Order cannot be cancelled now but dont worry you can refuse delivery at doorStep.",
+      });
+    }
+
+    // --------------------------------------------------
+    // Cancel entire order
+    // --------------------------------------------------
+
+    order.orderStatus = "cancelled";
+
+    // Cancel every item
+    order.items.forEach((item) => {
+      item.orderStatus = "cancelled";
+    });
+
+    await order.save();
+
+    notifyCustomerOrderCancelled(order).catch((error) => {
+      console.error("Order Cancellation Telegram Error:", error);
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Order cancelled successfully.",
+
+      order: {
+        _id: order._id,
+        orderNumber: order.orderNumber,
+        orderStatus: order.orderStatus,
+        itemCount: order.items.length,
+      },
+    });
+  } catch (error) {
+    console.error("Cancel Order Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to cancel order.",
+    });
+  }
+};
+
 /* ==========================================================
    Get My Orders
    GET /api/orders/my-orders
 
    Customer sees ONE order with ALL items.
 ========================================================== */
-
 export const getMyOrders = async (req, res) => {
   try {
     // --------------------------------------------------
@@ -546,142 +684,6 @@ export const getSingleOrder = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch order.",
-    });
-  }
-};
-
-/* ==========================================================
-   Cancel Order
-   PATCH /api/orders/:orderId/cancel
-
-   IMPORTANT:
-   Customer cancellation is ORDER LEVEL.
-
-   If customer cancels:
-   - Outer order -> cancelled
-   - Every item -> cancelled
-
-   No individual item cancellation.
-========================================================== */
-
-export const cancelOrder = async (req, res) => {
-  try {
-    // --------------------------------------------------
-    // Only customers
-    // --------------------------------------------------
-
-    if (req.user.role !== "customer") {
-      return res.status(403).json({
-        success: false,
-        message: "Only customers can cancel orders.",
-      });
-    }
-
-    // --------------------------------------------------
-    // Customer
-    // --------------------------------------------------
-
-    const customer = await Customer.findOne({
-      userId: req.user._id,
-    });
-
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: "Customer not found.",
-      });
-    }
-
-    // --------------------------------------------------
-    // Validate order ID
-    // --------------------------------------------------
-
-    const { orderId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(orderId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid order id.",
-      });
-    }
-
-    // --------------------------------------------------
-    // Find customer's order
-    // --------------------------------------------------
-
-    const order = await Order.findOne({
-      _id: orderId,
-      customer: customer._id,
-    });
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found.",
-      });
-    }
-
-    // --------------------------------------------------
-    // Already cancelled
-    // --------------------------------------------------
-
-    if (order.orderStatus === "cancelled") {
-      return res.status(400).json({
-        success: false,
-        message: "Order is already cancelled.",
-      });
-    }
-
-    // --------------------------------------------------
-    // Check every item
-    //
-    // Customer can cancel the complete order only if
-    // every item is still in ordered/confirmed state.
-    // --------------------------------------------------
-
-    const nonCancellableItem = order.items.find(
-      (item) =>
-        !["ordered", "confirmed", "notAvailable"].includes(item.orderStatus),
-    );
-
-    if (nonCancellableItem) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Order cannot be cancelled now but dont worry you can refuse delivery at doorStep.",
-      });
-    }
-
-    // --------------------------------------------------
-    // Cancel entire order
-    // --------------------------------------------------
-
-    order.orderStatus = "cancelled";
-
-    // Cancel every item
-    order.items.forEach((item) => {
-      item.orderStatus = "cancelled";
-    });
-
-    await order.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Order cancelled successfully.",
-
-      order: {
-        _id: order._id,
-        orderNumber: order.orderNumber,
-        orderStatus: order.orderStatus,
-        itemCount: order.items.length,
-      },
-    });
-  } catch (error) {
-    console.error("Cancel Order Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to cancel order.",
     });
   }
 };

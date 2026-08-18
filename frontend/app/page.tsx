@@ -1,3 +1,4 @@
+// app/page.tsx
 import Header from "@/components/layout/Header";
 import AuthBanner from "@/components/layout/AuthBanner";
 import Hero from "@/components/layout/Hero";

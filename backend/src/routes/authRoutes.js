@@ -15,6 +15,7 @@ import {
 import { getCustomerProfile } from "../controllers/customerController.js";
 import { getSellerProfile } from "../controllers/sellerController.js";
 import { getDeliveryProfile } from "../controllers/deliveryController.js";
+import { uploadAadhaarDocument } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
@@ -25,8 +26,7 @@ router.post("/customer/signup", customerSignup);
 router.post("/seller/signup", sellerSignup);
 
 // Delivery Partner
-router.post("/delivery/signup", deliverySignup);
-
+router.post("/delivery/signup", uploadAadhaarDocument, deliverySignup);
 // Login
 router.post("/login", login);
 

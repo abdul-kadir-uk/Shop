@@ -1,9 +1,13 @@
+// components/groceries/delivery/DeliveryProfile.tsx
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import { User, Phone, MapPin, Mail, LogOut } from "lucide-react";
 
 import { getDeliveryProfile } from "@/lib/deliveryApi";
+import { useAuth } from "@/context/authContext";
 
 interface ProfileData {
   name: string;
@@ -13,6 +17,10 @@ interface ProfileData {
 }
 
 export default function DeliveryProfile() {
+  const router = useRouter();
+
+  const { loading: authLoading, isLoggedIn } = useAuth();
+
   const [profile, setProfile] = useState<ProfileData>({
     name: "",
     email: "",
@@ -27,35 +35,65 @@ export default function DeliveryProfile() {
   // Fetch Profile
   // ======================================================
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        setLoading(true);
-        setError("");
+  const fetchProfile = async () => {
+    // Never fetch profile when user is logged out
+    if (!isLoggedIn) {
+      return;
+    }
 
-        const data = await getDeliveryProfile();
+    try {
+      setLoading(true);
+      setError("");
 
-        if (!data.success) {
-          throw new Error("Failed to fetch profile.");
-        }
+      const data = await getDeliveryProfile();
 
-        setProfile({
-          name: data.user?.name || "",
-          email: data.user?.email || "",
-          mobile: data.user?.mobile || "",
-          address: data.user?.address || "",
-        });
-      } catch (error) {
-        console.error("Delivery Profile Error:", error);
-
-        setError("Failed to load your profile. Please try again.");
-      } finally {
-        setLoading(false);
+      if (!data.success) {
+        throw new Error("Failed to fetch profile.");
       }
-    };
 
+      setProfile({
+        name: data.user?.name || "",
+        email: data.user?.email || "",
+        mobile: data.user?.mobile || "",
+        address: data.user?.address || "",
+      });
+    } catch (error: any) {
+      console.error("Delivery Profile Error:", error);
+
+      // If the API says the user is unauthorized,
+      // send them to login instead of showing an Axios error.
+      if (error?.response?.status === 401) {
+        router.replace("/login");
+        return;
+      }
+
+      setError("Failed to load your profile. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ======================================================
+  // Authentication / Initial Load
+  // ======================================================
+
+  useEffect(() => {
+    // Wait until authentication check is finished
+    if (authLoading) {
+      return;
+    }
+
+    // User is not logged in
+    if (!isLoggedIn) {
+      router.replace("/login");
+      return;
+    }
+
+    // User is authenticated, now fetch profile
     fetchProfile();
-  }, []);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, isLoggedIn]);
 
   // ======================================================
   // Logout
@@ -68,6 +106,26 @@ export default function DeliveryProfile() {
 
     window.location.href = "/login";
   };
+
+  // ======================================================
+  // Authentication Loading
+  // ======================================================
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-75 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
+      </div>
+    );
+  }
+
+  // ======================================================
+  // Logged Out
+  // ======================================================
+
+  if (!isLoggedIn) {
+    return null;
+  }
 
   // ======================================================
   // Loading
@@ -113,7 +171,14 @@ export default function DeliveryProfile() {
 
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              if (!isLoggedIn) {
+                router.replace("/login");
+                return;
+              }
+
+              fetchProfile();
+            }}
             className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
           >
             Try Again

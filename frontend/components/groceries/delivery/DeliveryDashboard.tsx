@@ -1,6 +1,9 @@
+// components/grocery/delivery/DeliveryDashboard.tsx
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import { Package, CheckCircle2, Truck, RefreshCw } from "lucide-react";
 
 import {
@@ -8,7 +11,13 @@ import {
   type DeliveryDashboardStats,
 } from "@/lib/deliveryApi";
 
+import { useAuth } from "@/context/authContext";
+
 export default function DeliveryDashboard() {
+  const router = useRouter();
+
+  const { loading: authLoading, isLoggedIn } = useAuth();
+
   const [stats, setStats] = useState<DeliveryDashboardStats>({
     availableDeliveries: 0,
     pendingDeliveries: 0,
@@ -25,6 +34,11 @@ export default function DeliveryDashboard() {
   // ======================================================
 
   const fetchDashboard = async (showFullLoader = true) => {
+    // Never fetch dashboard when user is logged out
+    if (!isLoggedIn) {
+      return;
+    }
+
     try {
       if (showFullLoader) {
         setLoading(true);
@@ -60,12 +74,46 @@ export default function DeliveryDashboard() {
   };
 
   // ======================================================
-  // Initial Load
+  // Authentication / Initial Load
   // ======================================================
 
   useEffect(() => {
+    // Wait until authentication check is finished
+    if (authLoading) {
+      return;
+    }
+
+    // User is not logged in
+    if (!isLoggedIn) {
+      router.replace("/login");
+      return;
+    }
+
+    // User is authenticated, now fetch dashboard
     fetchDashboard();
-  }, []);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, isLoggedIn]);
+
+  // ======================================================
+  // Authentication Loading
+  // ======================================================
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-75 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
+      </div>
+    );
+  }
+
+  // ======================================================
+  // Logged Out
+  // ======================================================
+
+  if (!isLoggedIn) {
+    return null;
+  }
 
   // ======================================================
   // Loading
@@ -107,7 +155,14 @@ export default function DeliveryDashboard() {
 
           <button
             type="button"
-            onClick={() => fetchDashboard()}
+            onClick={() => {
+              if (!isLoggedIn) {
+                router.replace("/login");
+                return;
+              }
+
+              fetchDashboard();
+            }}
             className="mt-4 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
           >
             <RefreshCw size={16} />
@@ -136,7 +191,14 @@ export default function DeliveryDashboard() {
 
         <button
           type="button"
-          onClick={() => fetchDashboard(false)}
+          onClick={() => {
+            if (!isLoggedIn) {
+              router.replace("/login");
+              return;
+            }
+
+            fetchDashboard(false);
+          }}
           disabled={refreshing}
           className="flex w-fit items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
         >

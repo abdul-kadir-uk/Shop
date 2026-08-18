@@ -2,12 +2,20 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ShoppingBag, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { addToCart } from "@/lib/cartApi";
 import { isLoggedIn } from "@/lib/auth";
+
+type ProductVariant = {
+  label: string;
+  price: number;
+  discountPrice: number | null;
+  stock: number;
+  isDefault: boolean;
+};
 
 type ProductInfoProps = {
   product: {
@@ -28,6 +36,8 @@ type ProductInfoProps = {
 
     price: number;
     discountPrice: number | null;
+
+    variants: ProductVariant[];
   };
 };
 
@@ -38,21 +48,84 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const [buying, setBuying] = useState(false);
   const [message, setMessage] = useState("");
 
+  /*
+   * Find default variant.
+   *
+   * If there is a variant marked isDefault:true,
+   * use its index.
+   *
+   * Otherwise use -1, meaning the base product.
+   */
+  const defaultVariantIndex = useMemo(() => {
+    if (!product.variants?.length) {
+      return -1;
+    }
+
+    const index = product.variants.findIndex(
+      (variant) => variant.isDefault === true,
+    );
+
+    return index !== -1 ? index : -1;
+  }, [product.variants]);
+
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(-1);
+
+  useEffect(() => {
+    setSelectedVariantIndex(defaultVariantIndex);
+  }, [defaultVariantIndex]);
+
+  /*
+   * Get currently selected variant.
+   */
+  const selectedVariant =
+    selectedVariantIndex >= 0 ? product.variants?.[selectedVariantIndex] : null;
+
+  /*
+   * Dynamic price.
+   *
+   * If a variant is selected, use variant price.
+   * Otherwise use product-level price.
+   */
+  const currentPrice = selectedVariant ? selectedVariant.price : product.price;
+
+  const currentDiscountPrice = selectedVariant
+    ? selectedVariant.discountPrice
+    : product.discountPrice;
+
+  /*
+   * Dynamic label/quantity.
+   *
+   * Variant label is preferred when a variant is selected.
+   */
+  const currentQuantityLabel = selectedVariant
+    ? selectedVariant.label
+    : `${product.quantity} ${product.unit}`;
+
+  /*
+   * Discount calculation.
+   */
   const hasDiscount =
-    product.discountPrice !== null && product.discountPrice < product.price;
+    currentDiscountPrice !== null && currentDiscountPrice < currentPrice;
 
   const discountPercentage = hasDiscount
-    ? Math.round(
-        ((product.price - product.discountPrice!) / product.price) * 100,
-      )
+    ? Math.round(((currentPrice - currentDiscountPrice!) / currentPrice) * 100)
     : 0;
+
+  // ======================================================
+  // Variant Selection
+  // ======================================================
+
+  const handleVariantSelect = (index: number) => {
+    setSelectedVariantIndex(index);
+
+    setMessage("");
+  };
 
   // ======================================================
   // Add To Cart
   // ======================================================
 
   const handleAddToCart = async () => {
-    // Check Login
     if (!isLoggedIn()) {
       router.push("/login");
       return;
@@ -62,12 +135,11 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       setAdding(true);
       setMessage("");
 
-      const data = await addToCart(product._id, 1, -1);
+      const data = await addToCart(product._id, 1, selectedVariantIndex);
 
       if (data.success) {
         setMessage("Added to cart");
 
-        // Tell GroceryNavbar to refresh count
         window.dispatchEvent(new Event("cart-updated"));
 
         setTimeout(() => {
@@ -90,7 +162,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   // ======================================================
 
   const handleBuyNow = () => {
-    // Check Login
     if (!isLoggedIn()) {
       router.push("/login");
       return;
@@ -103,12 +174,13 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         type: "buyNow",
         productId: product._id,
         quantity: "1",
-        variantIndex: "-1",
+        variantIndex: String(selectedVariantIndex),
       });
 
       router.push(`/groceries/checkout?${params.toString()}`);
     } catch (error) {
       console.error("Product Details Buy Now Error:", error);
+
       setBuying(false);
     }
   };
@@ -152,23 +224,49 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         <div className="flex justify-between border-b pb-2">
           <span className="text-gray-500">Quantity</span>
 
-          <span className="font-medium">
-            {product.quantity} {product.unit}
-          </span>
+          <span className="font-medium">{currentQuantityLabel}</span>
         </div>
       </div>
+
+      {/* Variants */}
+      {product.variants?.length > 0 && (
+        <div className="rounded-xl border bg-white p-5">
+          <h2 className="mb-3 text-lg font-semibold">Select Quantity</h2>
+
+          <div className="flex flex-wrap gap-3">
+            {product.variants.map((variant, index) => {
+              const isSelected = selectedVariantIndex === index;
+
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleVariantSelect(index)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                    isSelected
+                      ? "border-green-600 bg-green-600 text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:border-green-500 hover:bg-green-50"
+                  }`}
+                >
+                  {variant.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Price */}
       <div className="rounded-xl border bg-white p-5">
         <div className="flex items-end gap-3">
           <span className="text-3xl font-bold text-green-600">
-            ₹{hasDiscount ? product.discountPrice : product.price}
+            ₹{hasDiscount ? currentDiscountPrice : currentPrice}
           </span>
 
           {hasDiscount && (
             <>
               <span className="pb-1 text-lg text-gray-400 line-through">
-                ₹{product.price}
+                ₹{currentPrice}
               </span>
 
               <span className="rounded bg-red-100 px-2 py-1 text-sm font-semibold text-red-600">

@@ -70,6 +70,17 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    telegramChatId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+
+    telegramConnectedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

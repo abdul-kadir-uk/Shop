@@ -1,4 +1,4 @@
-// authController.js
+// controllers/authController.js
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
@@ -6,6 +6,9 @@ import generateToken, { generateResetToken } from "../utils/jwt.js";
 import Customer from "../models/Customer.js";
 import DeliveryPartner from "../models/DeliveryPartner.js";
 import Seller from "../models/Seller.js";
+import City from "../models/City.js";
+import Area from "../models/Area.js";
+import { uploadToS3 } from "../utils/s3.js";
 
 // ======================
 // CUSTOMER SIGNUP
@@ -85,11 +88,30 @@ export const sellerSignup = async (req, res) => {
       shopName,
       category,
       address,
+      cityId,
+      gstinNumber,
       securityQuestion,
       securityAnswer,
     } = req.body;
 
+    // ---------------------------------
+    // Validate City
+    // ---------------------------------
+    const city = await City.findOne({
+      _id: cityId,
+      isActive: true,
+    });
+
+    if (!city) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or inactive city",
+      });
+    }
+
+    // ---------------------------------
     // Check existing user
+    // ---------------------------------
     const existingUser = await User.findOne({
       $or: [{ email }, { mobile }],
     });
@@ -101,11 +123,21 @@ export const sellerSignup = async (req, res) => {
       });
     }
 
+    // ---------------------------------
+    // Hash password
+    // ---------------------------------
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ---------------------------------
+    // Hash security answer
+    // ---------------------------------
     const normalizedAnswer = securityAnswer.trim().toLowerCase();
+
     const hashedSecurityAnswer = await bcrypt.hash(normalizedAnswer, 10);
 
+    // ---------------------------------
     // Create User
+    // ---------------------------------
     const user = await User.create({
       name,
       email,
@@ -116,7 +148,9 @@ export const sellerSignup = async (req, res) => {
       securityAnswer: hashedSecurityAnswer,
     });
 
+    // ---------------------------------
     // Create Seller Profile
+    // ---------------------------------
     const seller = await Seller.create({
       userId: user._id,
       name,
@@ -124,9 +158,17 @@ export const sellerSignup = async (req, res) => {
       mobile,
       category,
       address,
+      gstinNumber,
+
+      // Seller location
+      city: city._id,
+
       approvalStatus: "pending",
     });
 
+    // ---------------------------------
+    // Response
+    // ---------------------------------
     res.status(201).json({
       success: true,
       message: "Application submitted successfully",
@@ -153,13 +195,43 @@ export const deliverySignup = async (req, res) => {
       mobile,
       password,
       address,
+      cityId,
       securityQuestion,
       securityAnswer,
       aadhaarNumber,
-      aadhaarDocument,
     } = req.body;
 
-    // Check existing user
+    // ---------------------------------
+    // Validate Aadhaar Document
+    // ---------------------------------
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Aadhaar document is required",
+      });
+    }
+
+    // ---------------------------------
+    // Validate City
+    // ---------------------------------
+
+    const city = await City.findOne({
+      _id: cityId,
+      isActive: true,
+    });
+
+    if (!city) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or inactive city",
+      });
+    }
+
+    // ---------------------------------
+    // Check Existing User
+    // ---------------------------------
+
     const existingUser = await User.findOne({
       $or: [{ email }, { mobile }],
     });
@@ -171,7 +243,10 @@ export const deliverySignup = async (req, res) => {
       });
     }
 
+    // ---------------------------------
     // Check Aadhaar
+    // ---------------------------------
+
     const existingAadhaar = await DeliveryPartner.findOne({
       aadhaarNumber,
     });
@@ -183,11 +258,30 @@ export const deliverySignup = async (req, res) => {
       });
     }
 
+    // ---------------------------------
+    // Upload Aadhaar Document to S3
+    // ---------------------------------
+
+    const uploadedAadhaar = await uploadToS3(req.file, "delivery/adhaar-docs");
+
+    // ---------------------------------
+    // Hash Password
+    // ---------------------------------
+
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ---------------------------------
+    // Hash Security Answer
+    // ---------------------------------
+
     const normalizedAnswer = securityAnswer.trim().toLowerCase();
+
     const hashedSecurityAnswer = await bcrypt.hash(normalizedAnswer, 10);
 
+    // ---------------------------------
     // Create User
+    // ---------------------------------
+
     const user = await User.create({
       name,
       email,
@@ -198,25 +292,47 @@ export const deliverySignup = async (req, res) => {
       securityAnswer: hashedSecurityAnswer,
     });
 
+    // ---------------------------------
     // Create Delivery Partner Profile
+    // ---------------------------------
+
     const deliveryPartner = await DeliveryPartner.create({
       userId: user._id,
       name,
       mobile,
       aadhaarNumber,
-      aadhaarDocument,
+
+      // Save S3 object key
+      aadhaarDocument: uploadedAadhaar.key,
+
       address,
+
+      // City selected during registration
+      assignedCities: [city._id],
+
       approvalStatus: "pending",
     });
 
-    res.status(201).json({
+    // ---------------------------------
+    // Response
+    // ---------------------------------
+
+    return res.status(201).json({
       success: true,
       message: "Application submitted successfully",
-      user,
-      deliveryPartner,
+
+      deliveryPartner: {
+        id: deliveryPartner._id,
+        userId: deliveryPartner.userId,
+        name: deliveryPartner.name,
+        mobile: deliveryPartner.mobile,
+        address: deliveryPartner.address,
+        assignedCities: deliveryPartner.assignedCities,
+        approvalStatus: deliveryPartner.approvalStatus,
+      },
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });

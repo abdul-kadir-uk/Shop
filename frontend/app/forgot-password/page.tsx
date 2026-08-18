@@ -70,13 +70,13 @@ export default function ForgotPasswordPage() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email */}
+          {/* Email or mobile */}
           <div>
             <label className="block mb-2 font-medium">Email or Mobile</label>
 
             <input
-              type="email"
-              name="email"
+              type="string"
+              name="identifier"
               placeholder="Enter your email"
               value={formData.identifier}
               onChange={handleChange}

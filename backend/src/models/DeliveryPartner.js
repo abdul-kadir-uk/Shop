@@ -1,4 +1,4 @@
-// delivery model
+// models/DeliveryPartner.js
 import mongoose from "mongoose";
 
 const deliveryPartnerSchema = new mongoose.Schema(
@@ -9,21 +9,25 @@ const deliveryPartnerSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+
     name: {
       type: String,
       required: true,
       trim: true,
     },
+
     mobile: {
       type: String,
       required: true,
       unique: true,
       trim: true,
     },
+
     isBlocked: {
       type: Boolean,
       default: false,
     },
+
     address: {
       type: String,
       required: true,
@@ -47,6 +51,14 @@ const deliveryPartnerSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+
+    // Cities assigned by admin
+    assignedCities: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "City",
+      },
+    ],
   },
   {
     timestamps: true,

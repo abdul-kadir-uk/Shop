@@ -1,5 +1,6 @@
-import mongoose from "mongoose";
+// controllers/deliveryOrderController.js
 
+import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import DeliveryPartner from "../models/DeliveryPartner.js";
 
@@ -9,19 +10,84 @@ import {
   PAYMENT_STATUS,
 } from "../constants/orderStatus.js";
 
+import {
+  notifyCustomerDeliveryAccepted,
+  notifyCustomerOutForDelivery,
+  notifyCustomerOrderDelivered,
+} from "../services/telegramNotificationService.js";
+
+// ======================================================
+// Helper: Check whether item is seller-resolved
+// ======================================================
+//
+// Seller-resolved statuses:
+// confirmed
+// notAvailable
+// cancelled
+//
+// NOTE:
+// For starting delivery, cancelled is NOT treated as
+// a deliverable item, but it is considered resolved.
+// ======================================================
+
+const isItemResolved = (item) => {
+  return (
+    item.orderStatus === ORDER_STATUS.CONFIRMED ||
+    item.orderStatus === ORDER_STATUS.NOT_AVAILABLE ||
+    item.orderStatus === ORDER_STATUS.CANCELLED
+  );
+};
+
+// ======================================================
+// Helper: Check whether all items are resolved
+// ======================================================
+
+const areAllItemsResolved = (items = []) => {
+  if (items.length === 0) {
+    return false;
+  }
+
+  return items.every((item) => isItemResolved(item));
+};
+
+// ======================================================
+// Helper: Check whether order has deliverable items
+// ======================================================
+//
+// Only CONFIRMED items can actually be delivered.
+//
+// NOT_AVAILABLE / CANCELLED items are not deliverable.
+// ======================================================
+
+const hasDeliverableItems = (items = []) => {
+  return items.some((item) => item.orderStatus === ORDER_STATUS.CONFIRMED);
+};
+
 // ======================================================
 // Get Available Delivery Orders
 // ======================================================
-// A delivery partner can see and accept an order
-// immediately after the customer places it.
 //
-// Seller confirmation is NOT required for acceptance.
+// A delivery partner can see and accept an order as soon
+// as the customer places it.
+//
+// Seller confirmation is NOT required.
+//
+// Example:
+//
+// Parent order:
+// ordered
+//
+// Item:
+// ordered
+// deliveryPartner: null
+//
+// The order IS available.
 // ======================================================
 
 export const getAvailableDeliveryOrders = async (req, res) => {
   try {
     // --------------------------------------------------
-    // Make sure logged-in user is a delivery partner
+    // Check role
     // --------------------------------------------------
 
     if (req.user.role !== "delivery") {
@@ -37,12 +103,30 @@ export const getAvailableDeliveryOrders = async (req, res) => {
 
     const deliveryPartner = await DeliveryPartner.findOne({
       userId: req.user._id,
-    });
+    }).lean();
 
     if (!deliveryPartner) {
       return res.status(404).json({
         success: false,
         message: "Delivery partner not found.",
+      });
+    }
+
+    // --------------------------------------------------
+    // Assigned cities
+    // --------------------------------------------------
+
+    const assignedCities = deliveryPartner.assignedCities || [];
+
+    if (assignedCities.length === 0) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        totalOrders: 0,
+        totalPages: 0,
+        page: 1,
+        limit: 10,
+        orders: [],
       });
     }
 
@@ -55,19 +139,37 @@ export const getAvailableDeliveryOrders = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // --------------------------------------------------
-    // Find orders that:
+    // Find available orders
+    // --------------------------------------------------
     //
-    // 1. Are still ordered
-    // 2. Have not already been assigned
+    // An order is available when:
     //
-    // IMPORTANT:
-    // We do NOT check item.orderStatus here.
-    // Seller confirmation is not required.
+    // 1. Parent order status is either:
+    //      - ordered
+    //      - confirmed
+    //
+    // 2. Order belongs to one of the delivery partner's
+    //    assigned cities.
+    //
+    // 3. At least one item has no delivery partner assigned.
+    //
+    // We intentionally do NOT check item.orderStatus here.
     // --------------------------------------------------
 
     const orders = await Order.find({
-      orderStatus: ORDER_STATUS.ORDERED,
-      "items.deliveryPartner": null,
+      orderStatus: {
+        $in: [ORDER_STATUS.ORDERED, ORDER_STATUS.CONFIRMED],
+      },
+
+      "shippingAddress.city._id": {
+        $in: assignedCities,
+      },
+
+      items: {
+        $elemMatch: {
+          deliveryPartner: null,
+        },
+      },
     })
       .populate("customer", "name email mobile")
       .populate("items.seller", "shopName address")
@@ -76,22 +178,13 @@ export const getAvailableDeliveryOrders = async (req, res) => {
       .lean();
 
     // --------------------------------------------------
-    // Only return orders that still have at least one
-    // unassigned delivery partner.
+    // Pagination
     // --------------------------------------------------
 
-    const availableOrders = orders.filter((order) => {
-      return order.items.some((item) => !item.deliveryPartner);
-    });
-
-    // --------------------------------------------------
-    // Pagination after filtering
-    // --------------------------------------------------
-
-    const totalOrders = availableOrders.length;
+    const totalOrders = orders.length;
     const totalPages = Math.ceil(totalOrders / limit);
 
-    const paginatedOrders = availableOrders.slice(skip, skip + limit);
+    const paginatedOrders = orders.slice(skip, skip + limit);
 
     return res.status(200).json({
       success: true,
@@ -115,13 +208,31 @@ export const getAvailableDeliveryOrders = async (req, res) => {
 // ======================================================
 // Accept Delivery Order
 // ======================================================
-// A delivery partner accepts the WHOLE order.
+//
+// Delivery partner accepts the WHOLE order.
 //
 // Seller confirmation is NOT required.
+//
+// The order remains:
+//
+// orderStatus = ordered
+//
+// Only deliveryPartner / acceptedAt are assigned.
 // ======================================================
 
 export const acceptDeliveryOrder = async (req, res) => {
   try {
+    // --------------------------------------------------
+    // Check role
+    // --------------------------------------------------
+
+    if (req.user.role !== "delivery") {
+      return res.status(403).json({
+        success: false,
+        message: "Only delivery partners can accept delivery orders.",
+      });
+    }
+
     const { orderId } = req.params;
 
     // --------------------------------------------------
@@ -151,20 +262,35 @@ export const acceptDeliveryOrder = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Atomically claim the WHOLE order
+    // Atomically claim whole order
+    // --------------------------------------------------
     //
-    // The order must:
+    // IMPORTANT:
     //
-    // 1. Still be ordered
-    // 2. Not already have a delivery partner
+    // We require:
     //
-    // We check that no item has a delivery partner.
+    // parent order = ordered
+    //
+    // AND every item is currently unassigned.
+    //
+    // Item status does NOT matter.
+    //
+    // Therefore an item with:
+    //
+    // ordered
+    // confirmed
+    // notAvailable
+    //
+    // can still be part of the accepted order.
     // --------------------------------------------------
 
     const result = await Order.updateOne(
       {
         _id: orderId,
-        orderStatus: ORDER_STATUS.ORDERED,
+
+        orderStatus: {
+          $in: [ORDER_STATUS.ORDERED, ORDER_STATUS.CONFIRMED],
+        },
 
         items: {
           $not: {
@@ -185,7 +311,7 @@ export const acceptDeliveryOrder = async (req, res) => {
     );
 
     // --------------------------------------------------
-    // Order was already accepted / unavailable
+    // Already accepted
     // --------------------------------------------------
 
     if (result.modifiedCount === 0) {
@@ -212,6 +338,18 @@ export const acceptDeliveryOrder = async (req, res) => {
         message: "Order not found after assignment.",
       });
     }
+
+    // --------------------------------------------------
+    // Notification
+    // --------------------------------------------------
+
+    notifyCustomerDeliveryAccepted(updatedOrder).catch((error) => {
+      console.error("Delivery Accepted Telegram Error:", error);
+    });
+
+    // --------------------------------------------------
+    // Response
+    // --------------------------------------------------
 
     return res.status(200).json({
       success: true,
@@ -243,10 +381,30 @@ export const acceptDeliveryOrder = async (req, res) => {
 // ======================================================
 // Get My Delivery Orders
 // ======================================================
+//
 // Returns WHOLE orders accepted by this delivery partner.
 //
-// Seller item statuses are included so the frontend can
-// determine whether "Out for Delivery" is allowed.
+// IMPORTANT:
+//
+// Seller changing:
+//
+// item.orderStatus
+//
+// from:
+//
+// ordered
+//
+// to:
+//
+// confirmed
+//
+// MUST NOT remove the order.
+//
+// The parent orderStatus remains:
+//
+// ordered
+//
+// until delivery partner starts delivery.
 // ======================================================
 
 export const getMyDeliveryOrders = async (req, res) => {
@@ -292,14 +450,31 @@ export const getMyDeliveryOrders = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // --------------------------------------------------
-    // Pending
+    // Parent order status
+    // --------------------------------------------------
+    //
+    // IMPORTANT:
+    //
+    // Seller item status is NOT used here.
+    //
+    // Pending means the DELIVERY process has not finished.
+    //
+    // ordered:
+    // Seller may still be resolving items.
+    //
+    // outForDelivery:
+    // Delivery is currently active.
     // --------------------------------------------------
 
     let orderStatusQuery;
 
     if (status === "pending") {
       orderStatusQuery = {
-        $in: [ORDER_STATUS.ORDERED, ORDER_STATUS.OUT_FOR_DELIVERY],
+        $in: [
+          ORDER_STATUS.ORDERED,
+          ORDER_STATUS.CONFIRMED,
+          ORDER_STATUS.OUT_FOR_DELIVERY,
+        ],
       };
     } else if (status === "completed") {
       orderStatusQuery = {
@@ -313,7 +488,23 @@ export const getMyDeliveryOrders = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Find orders assigned to this delivery partner
+    // Find orders
+    // --------------------------------------------------
+    //
+    // IMPORTANT:
+    //
+    // We only require that this delivery partner is
+    // assigned to at least one item.
+    //
+    // We DO NOT filter item.orderStatus.
+    //
+    // Therefore:
+    //
+    // ordered item       -> visible
+    // confirmed item     -> visible
+    // notAvailable item  -> visible
+    //
+    // as long as parent order is pending.
     // --------------------------------------------------
 
     const orders = await Order.find({
@@ -332,39 +523,43 @@ export const getMyDeliveryOrders = async (req, res) => {
       .lean();
 
     // --------------------------------------------------
-    // Return the COMPLETE order.
-    //
-    // Do NOT filter individual items here.
-    //
-    // The delivery partner accepted the whole order.
+    // Build response
     // --------------------------------------------------
 
     const myOrders = orders.map((order) => {
       // ------------------------------------------------
-      // Determine whether every item is resolved
+      // Are ALL items resolved?
+      // ------------------------------------------------
+
+      const allItemsResolved = areAllItemsResolved(order.items);
+
+      // ------------------------------------------------
+      // Does the order contain a confirmed item?
+      // ------------------------------------------------
+
+      const orderHasDeliverableItems = hasDeliverableItems(order.items);
+
+      // ------------------------------------------------
+      // Can delivery start?
       //
-      // Seller-resolved means:
-      // confirmed OR notAvailable
+      // Parent order MUST still be ordered.
+      //
+      // ALL items must be resolved.
+      //
+      // At least one item must be confirmed.
       // ------------------------------------------------
 
-      const allItemsResolved = order.items.every(
-        (item) =>
-          item.orderStatus === ORDER_STATUS.CONFIRMED ||
-          item.orderStatus === ORDER_STATUS.NOT_AVAILABLE,
-      );
-
-      // ------------------------------------------------
-      // There must be at least one deliverable item
-      // for the order to go out for delivery.
-      // ------------------------------------------------
-
-      const hasDeliverableItems = order.items.some(
-        (item) => item.orderStatus === ORDER_STATUS.CONFIRMED,
-      );
+      const canStartDelivery =
+        order.orderStatus === ORDER_STATUS.CONFIRMED &&
+        allItemsResolved &&
+        orderHasDeliverableItems;
 
       return {
         _id: order._id,
         orderNumber: order.orderNumber,
+
+        // IMPORTANT:
+        // This is the DELIVERY/WHOLE ORDER status.
         orderStatus: order.orderStatus,
 
         customer: order.customer,
@@ -384,13 +579,15 @@ export const getMyDeliveryOrders = async (req, res) => {
         createdAt: order.createdAt,
 
         // ------------------------------------------------
-        // Frontend can directly use this.
+        // Seller resolution state
         // ------------------------------------------------
 
-        canStartDelivery:
-          order.orderStatus === ORDER_STATUS.ORDERED &&
-          allItemsResolved &&
-          hasDeliverableItems,
+        canStartDelivery,
+
+        // These are useful for frontend debugging/UI.
+        allItemsResolved,
+
+        hasDeliverableItems: orderHasDeliverableItems,
       };
     });
 
@@ -402,6 +599,10 @@ export const getMyDeliveryOrders = async (req, res) => {
     const totalPages = Math.ceil(totalOrders / limit);
 
     const paginatedOrders = myOrders.slice(skip, skip + limit);
+
+    // --------------------------------------------------
+    // Response
+    // --------------------------------------------------
 
     return res.status(200).json({
       success: true,
@@ -426,13 +627,20 @@ export const getMyDeliveryOrders = async (req, res) => {
 // ======================================================
 // Update Delivery Order Status
 // ======================================================
-// Delivery partner updates the WHOLE order.
+//
+// Delivery partner updates WHOLE ORDER.
 //
 // ordered
 //    ↓
 // outForDelivery
 //    ↓
-// delivered / cancelled
+// delivered
+//
+// OR
+//
+// ordered / outForDelivery
+//    ↓
+// cancelled
 // ======================================================
 
 export const updateDeliveryOrderStatus = async (req, res) => {
@@ -502,7 +710,7 @@ export const updateDeliveryOrderStatus = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Make sure this delivery partner owns the order
+    // Make sure delivery partner owns order
     // --------------------------------------------------
 
     const assignedToThisPartner = order.items.some(
@@ -524,10 +732,10 @@ export const updateDeliveryOrderStatus = async (req, res) => {
 
     if (status === ORDER_STATUS.OUT_FOR_DELIVERY) {
       // ------------------------------------------------
-      // Order must still be ordered
+      // Parent order must still be confirmed
       // ------------------------------------------------
 
-      if (order.orderStatus !== ORDER_STATUS.ORDERED) {
+      if (order.orderStatus !== ORDER_STATUS.CONFIRMED) {
         return res.status(400).json({
           success: false,
           message: `Order cannot be started because it is already ${order.orderStatus}.`,
@@ -535,21 +743,17 @@ export const updateDeliveryOrderStatus = async (req, res) => {
       }
 
       // ------------------------------------------------
-      // ALL items must be seller-resolved
+      // ALL items must be resolved
       //
-      // Valid:
+      // accepted:
       // confirmed
       // notAvailable
+      // cancelled
       //
-      // Invalid:
-      // ordered
+      // ordered is NOT allowed.
       // ------------------------------------------------
 
-      const allItemsResolved = order.items.every(
-        (item) =>
-          item.orderStatus === ORDER_STATUS.CONFIRMED ||
-          item.orderStatus === ORDER_STATUS.NOT_AVAILABLE,
-      );
+      const allItemsResolved = areAllItemsResolved(order.items);
 
       if (!allItemsResolved) {
         return res.status(400).json({
@@ -560,14 +764,12 @@ export const updateDeliveryOrderStatus = async (req, res) => {
       }
 
       // ------------------------------------------------
-      // At least one item must actually be deliverable
+      // At least one confirmed item must exist
       // ------------------------------------------------
 
-      const hasDeliverableItems = order.items.some(
-        (item) => item.orderStatus === ORDER_STATUS.CONFIRMED,
-      );
+      const orderHasDeliverableItems = hasDeliverableItems(order.items);
 
-      if (!hasDeliverableItems) {
+      if (!orderHasDeliverableItems) {
         return res.status(400).json({
           success: false,
           message: "This order has no available items to deliver.",
@@ -575,12 +777,20 @@ export const updateDeliveryOrderStatus = async (req, res) => {
       }
 
       // ------------------------------------------------
-      // Start whole order
+      // Change parent order status ONLY here
       // ------------------------------------------------
 
       order.orderStatus = ORDER_STATUS.OUT_FOR_DELIVERY;
 
       await order.save();
+
+      // ------------------------------------------------
+      // Notification
+      // ------------------------------------------------
+
+      notifyCustomerOutForDelivery(order).catch((error) => {
+        console.error("Out For Delivery Telegram Error:", error);
+      });
 
       return res.status(200).json({
         success: true,
@@ -597,7 +807,7 @@ export const updateDeliveryOrderStatus = async (req, res) => {
 
     if (status === ORDER_STATUS.DELIVERED) {
       // ------------------------------------------------
-      // Order must currently be out for delivery
+      // Order must be out for delivery
       // ------------------------------------------------
 
       if (order.orderStatus !== ORDER_STATUS.OUT_FOR_DELIVERY) {
@@ -608,15 +818,16 @@ export const updateDeliveryOrderStatus = async (req, res) => {
       }
 
       // ------------------------------------------------
-      // Update whole order
+      // Update parent order
       // ------------------------------------------------
 
       order.orderStatus = ORDER_STATUS.DELIVERED;
 
       // ------------------------------------------------
-      // Mark confirmed items as delivered
+      // Confirmed items become delivered.
       //
       // notAvailable items remain notAvailable.
+      // cancelled items remain cancelled.
       // ------------------------------------------------
 
       for (const item of order.items) {
@@ -627,12 +838,20 @@ export const updateDeliveryOrderStatus = async (req, res) => {
       }
 
       // ------------------------------------------------
-      // COD payment is paid when delivery completes
+      // COD payment becomes paid
       // ------------------------------------------------
 
       order.paymentStatus = PAYMENT_STATUS.PAID;
 
       await order.save();
+
+      // ------------------------------------------------
+      // Notification
+      // ------------------------------------------------
+
+      notifyCustomerOrderDelivered(order).catch((error) => {
+        console.error("Order Delivered Telegram Error:", error);
+      });
 
       return res.status(200).json({
         success: true,
@@ -650,7 +869,7 @@ export const updateDeliveryOrderStatus = async (req, res) => {
 
     if (status === ORDER_STATUS.CANCELLED) {
       // ------------------------------------------------
-      // Cannot cancel after delivery
+      // Cannot cancel completed order
       // ------------------------------------------------
 
       if (
@@ -670,11 +889,16 @@ export const updateDeliveryOrderStatus = async (req, res) => {
       order.orderStatus = ORDER_STATUS.CANCELLED;
 
       // ------------------------------------------------
-      // Keep seller item statuses intact.
+      // IMPORTANT:
       //
-      // We intentionally do NOT change item.orderStatus
-      // here because those statuses belong to seller
-      // availability.
+      // Do NOT overwrite seller item statuses.
+      //
+      // Example:
+      //
+      // item A = confirmed
+      // item B = notAvailable
+      //
+      // Those remain as seller resolution statuses.
       // ------------------------------------------------
 
       await order.save();
@@ -687,6 +911,10 @@ export const updateDeliveryOrderStatus = async (req, res) => {
         orderStatus: order.orderStatus,
       });
     }
+
+    // ==================================================
+    // Unsupported
+    // ==================================================
 
     return res.status(400).json({
       success: false,

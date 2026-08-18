@@ -2,6 +2,7 @@
 import DeliveryPartner from "../models/DeliveryPartner.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
+import City from "../models/City.js";
 
 import { ORDER_STATUS, PAYMENT_STATUS } from "../constants/orderStatus.js";
 
@@ -198,12 +199,29 @@ export const getDeliveryProfile = async (req, res) => {
       userId: req.user._id,
     }).lean();
 
+    if (!deliveryPartner) {
+      return res.status(404).json({
+        success: false,
+        message: "Delivery partner profile not found",
+      });
+    }
+
+    // Get all cities assigned to this delivery partner
+    const cities = await City.find({
+      _id: { $in: deliveryPartner.assignedCities || [] },
+    })
+      .select("name")
+      .lean();
+
     res.status(200).json({
       success: true,
       user,
       deliveryPartner,
+      cities,
     });
   } catch (error) {
+    console.error("Get delivery profile error:", error);
+
     res.status(500).json({
       success: false,
       message: error.message,

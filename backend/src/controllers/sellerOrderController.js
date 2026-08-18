@@ -10,6 +10,8 @@ import {
   SELLER_ALLOWED_STATUS,
 } from "../constants/orderStatus.js";
 
+import { notifyCustomerSellerItemStatus } from "../services/telegramNotificationService.js";
+
 /* ==========================================================
    Seller Orders
    GET /api/seller/orders
@@ -376,19 +378,6 @@ export const updateSellerOrderStatus = async (req, res) => {
     }
 
     // ------------------------------------------------------
-    // Validate item index
-    // ------------------------------------------------------
-
-    const index = Number(itemIndex);
-
-    if (!Number.isInteger(index) || index < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid item index.",
-      });
-    }
-
-    // ------------------------------------------------------
     // Validate seller status
     // ------------------------------------------------------
 
@@ -414,54 +403,150 @@ export const updateSellerOrderStatus = async (req, res) => {
     }
 
     // ------------------------------------------------------
-    // Find requested item
+    // Seller should only resolve orders that are still
+    // waiting for seller confirmation.
     // ------------------------------------------------------
 
-    const item = order.items[index];
-
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        message: "Order item not found.",
-      });
-    }
-
-    // ------------------------------------------------------
-    // Make sure this item belongs to this seller
-    // ------------------------------------------------------
-
-    if (item.seller.toString() !== seller._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not authorized to update this item.",
-      });
-    }
-
-    // ------------------------------------------------------
-    // Only ordered -> confirmed / notAvailable
-    //
-    // Seller cannot modify an item that has already
-    // been resolved.
-    // ------------------------------------------------------
-
-    if (item.orderStatus !== ORDER_STATUS.ORDERED) {
+    if (
+      order.orderStatus !== ORDER_STATUS.ORDERED &&
+      order.orderStatus !== ORDER_STATUS.CONFIRMED
+    ) {
       return res.status(400).json({
         success: false,
-        message: `Item is already ${item.orderStatus}.`,
+        message: `This order cannot be updated because it is already ${order.orderStatus}.`,
       });
     }
 
     // ------------------------------------------------------
-    // Update ONLY the selected item
+    // Check whether this is:
+    //
+    // 1. Single item update
+    // 2. All seller items update
+    //
+    // itemIndex present  => single item
+    // itemIndex missing  => all seller items
     // ------------------------------------------------------
 
-    item.orderStatus = status;
+    const isSingleItemUpdate =
+      itemIndex !== undefined && itemIndex !== null && itemIndex !== "";
 
-    await order.save();
+    const updatedItems = [];
+
+    // ======================================================
+    // SINGLE ITEM UPDATE
+    // ======================================================
+
+    if (isSingleItemUpdate) {
+      const index = Number(itemIndex);
+
+      // ----------------------------------------------------
+      // Validate item index
+      // ----------------------------------------------------
+
+      if (!Number.isInteger(index) || index < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid item index.",
+        });
+      }
+
+      // ----------------------------------------------------
+      // Find requested item
+      // ----------------------------------------------------
+
+      const item = order.items[index];
+
+      if (!item) {
+        return res.status(404).json({
+          success: false,
+          message: "Order item not found.",
+        });
+      }
+
+      // ----------------------------------------------------
+      // Make sure this item belongs to this seller
+      // ----------------------------------------------------
+
+      if (item.seller.toString() !== seller._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not authorized to update this item.",
+        });
+      }
+
+      // ----------------------------------------------------
+      // Only ordered -> confirmed / notAvailable
+      // ----------------------------------------------------
+
+      if (item.orderStatus !== ORDER_STATUS.ORDERED) {
+        return res.status(400).json({
+          success: false,
+          message: `Item is already ${item.orderStatus}.`,
+        });
+      }
+
+      // ----------------------------------------------------
+      // Update selected item
+      // ----------------------------------------------------
+
+      item.orderStatus = status;
+
+      updatedItems.push({
+        item,
+        index,
+      });
+    }
+
+    // ======================================================
+    // UPDATE ALL ITEMS BELONGING TO THIS SELLER
+    // ======================================================
+    else {
+      order.items.forEach((item, index) => {
+        // --------------------------------------------------
+        // Only update this seller's items
+        // --------------------------------------------------
+
+        if (item.seller.toString() !== seller._id.toString()) {
+          return;
+        }
+
+        // --------------------------------------------------
+        // Only update unresolved ORDERED items
+        // --------------------------------------------------
+
+        if (item.orderStatus !== ORDER_STATUS.ORDERED) {
+          return;
+        }
+
+        item.orderStatus = status;
+
+        updatedItems.push({
+          item,
+          index,
+        });
+      });
+
+      // ----------------------------------------------------
+      // Seller has no pending items in this order
+      // ----------------------------------------------------
+
+      if (updatedItems.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "There are no pending items belonging to this seller in this order.",
+        });
+      }
+    }
 
     // ------------------------------------------------------
-    // Check whether all items in the combined order
+    // Check whether ALL items in the combined order
     // have now been resolved by sellers.
+    //
+    // Resolved:
+    // confirmed
+    // notAvailable
+    // cancelled
     // ------------------------------------------------------
 
     const allItemsResolved = order.items.every(
@@ -472,24 +557,77 @@ export const updateSellerOrderStatus = async (req, res) => {
     );
 
     // ------------------------------------------------------
+    // Check whether at least one item can actually be
+    // delivered.
+    // ------------------------------------------------------
+
+    const hasDeliverableItems = order.items.some(
+      (orderItem) => orderItem.orderStatus === ORDER_STATUS.CONFIRMED,
+    );
+
+    // ======================================================
+    // IMPORTANT:
+    //
+    // Update the PARENT order status only after ALL items
+    // have been resolved.
+    // ======================================================
+
+    if (
+      allItemsResolved &&
+      hasDeliverableItems &&
+      order.orderStatus === ORDER_STATUS.ORDERED
+    ) {
+      order.orderStatus = ORDER_STATUS.CONFIRMED;
+    }
+
+    // ------------------------------------------------------
+    // Save order
+    // ------------------------------------------------------
+
+    await order.save();
+
+    // ------------------------------------------------------
+    // Send Telegram notification for every updated item
+    // ------------------------------------------------------
+
+    for (const { item } of updatedItems) {
+      notifyCustomerSellerItemStatus({
+        order,
+        item,
+        status,
+      }).catch((error) => {
+        console.error("Customer Telegram Notification Error:", error);
+      });
+    }
+
+    // ------------------------------------------------------
     // Response
     // ------------------------------------------------------
 
     return res.status(200).json({
       success: true,
 
-      message: "Order item status updated successfully.",
+      message: isSingleItemUpdate
+        ? "Order item status updated successfully."
+        : "All pending items belonging to this seller were updated successfully.",
 
       order: {
         _id: order._id,
 
         orderNumber: order.orderNumber,
 
-        itemIndex: index,
+        orderStatus: order.orderStatus,
 
-        orderStatus: item.orderStatus,
+        updatedItems: updatedItems.map(({ index, item }) => ({
+          itemIndex: index,
+          orderStatus: item.orderStatus,
+        })),
+
+        updatedCount: updatedItems.length,
 
         allItemsResolved,
+
+        hasDeliverableItems,
       },
     });
   } catch (error) {

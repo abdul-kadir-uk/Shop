@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/authContext";
 
 interface SellerProfile {
   _id: string;
@@ -20,6 +21,8 @@ export default function GroceryProfilePage() {
 
   const [seller, setSeller] = useState<SellerProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const { logoutUser } = useAuth();
 
   useEffect(() => {
     getProfile();
@@ -39,14 +42,6 @@ export default function GroceryProfilePage() {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("role");
-
-    router.replace("/login");
-  };
-
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "approved":
@@ -61,6 +56,14 @@ export default function GroceryProfilePage() {
       default:
         return "bg-gray-100 text-gray-700";
     }
+  };
+
+  const handleLogout = () => {
+    setLoggingOut(true);
+
+    logoutUser();
+
+    router.replace("/login");
   };
 
   if (loading) {
@@ -164,10 +167,12 @@ export default function GroceryProfilePage() {
           {/* Logout */}
           <div className="mt-10 border-t pt-6">
             <button
-              onClick={logout}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="rounded-xl border border-red-200 px-5 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Logout
+              {loggingOut ? "Logging out..." : "Logout"}
             </button>
           </div>
         </div>

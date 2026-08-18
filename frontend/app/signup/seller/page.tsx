@@ -1,8 +1,14 @@
+// app/signup/seller/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+
+interface City {
+  _id: string;
+  name: string;
+}
 
 export default function SellerSignupPage() {
   const router = useRouter();
@@ -11,6 +17,8 @@ export default function SellerSignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [cities, setCities] = useState<City[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(true);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -18,6 +26,8 @@ export default function SellerSignupPage() {
     mobile: "",
     shopName: "",
     category: "",
+    gstinNumber: "",
+    cityId: "",
     password: "",
     confirmPassword: "",
     securityQuestion: "",
@@ -26,6 +36,30 @@ export default function SellerSignupPage() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // ---------------------------------
+  // Fetch Active Cities
+  // ---------------------------------
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        setIsLoadingCities(true);
+
+        const { data } = await axios.get("http://localhost:5000/api/cities");
+
+        if (data.success) {
+          setCities(data.cities || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch cities", error);
+        setServerError("Unable to load cities");
+      } finally {
+        setIsLoadingCities(false);
+      }
+    };
+
+    fetchCities();
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -81,6 +115,16 @@ export default function SellerSignupPage() {
       newErrors.mobile = "Please enter a valid 10-digit mobile number";
     }
 
+    // GSTIN validation
+    if (
+      formData.gstinNumber &&
+      !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(
+        formData.gstinNumber.toUpperCase(),
+      )
+    ) {
+      newErrors.gstinNumber = "Please enter a valid GSTIN number";
+    }
+
     if (formData.password.length < 8) {
       newErrors.password = "Password must be at least 8 characters";
     }
@@ -97,6 +141,8 @@ export default function SellerSignupPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    setServerError("");
+
     if (!validateForm()) return;
 
     try {
@@ -112,6 +158,8 @@ export default function SellerSignupPage() {
           shopName: formData.shopName,
           category: formData.category,
           address: formData.address,
+          cityId: formData.cityId,
+          gstinNumber: formData.gstinNumber.toUpperCase(),
           securityQuestion: formData.securityQuestion,
           securityAnswer: formData.securityAnswer.trim().toLowerCase(),
         },
@@ -142,6 +190,7 @@ export default function SellerSignupPage() {
           {/* Name */}
           <div>
             <label className="mb-1 block font-medium">Full Name *</label>
+
             <input
               type="text"
               name="name"
@@ -150,6 +199,7 @@ export default function SellerSignupPage() {
               placeholder="Enter your name"
               className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
             />
+
             {errors.name && (
               <p className="mt-1 text-sm text-red-500">{errors.name}</p>
             )}
@@ -159,6 +209,7 @@ export default function SellerSignupPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block font-medium">Email *</label>
+
               <input
                 type="email"
                 name="email"
@@ -167,6 +218,7 @@ export default function SellerSignupPage() {
                 placeholder="Enter email"
                 className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
               />
+
               {errors.email && (
                 <p className="mt-1 text-sm text-red-500">{errors.email}</p>
               )}
@@ -174,6 +226,7 @@ export default function SellerSignupPage() {
 
             <div>
               <label className="mb-1 block font-medium">Mobile Number *</label>
+
               <input
                 type="tel"
                 name="mobile"
@@ -182,6 +235,7 @@ export default function SellerSignupPage() {
                 placeholder="Enter mobile number"
                 className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
               />
+
               {errors.mobile && (
                 <p className="mt-1 text-sm text-red-500">{errors.mobile}</p>
               )}
@@ -191,6 +245,7 @@ export default function SellerSignupPage() {
           {/* Shop Name */}
           <div>
             <label className="mb-1 block font-medium">Shop Name *</label>
+
             <input
               type="text"
               name="shopName"
@@ -199,6 +254,7 @@ export default function SellerSignupPage() {
               placeholder="Enter shop name"
               className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
             />
+
             {errors.shopName && (
               <p className="mt-1 text-sm text-red-500">{errors.shopName}</p>
             )}
@@ -207,6 +263,7 @@ export default function SellerSignupPage() {
           {/* Category */}
           <div>
             <label className="mb-1 block font-medium">Category *</label>
+
             <select
               name="category"
               value={formData.category}
@@ -221,6 +278,66 @@ export default function SellerSignupPage() {
             {errors.category && (
               <p className="mt-1 text-sm text-red-500">{errors.category}</p>
             )}
+          </div>
+
+          {/* GSTIN + City */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* GSTIN */}
+            <div>
+              <label className="mb-1 block font-medium">GSTIN Number *</label>
+
+              <input
+                type="text"
+                name="gstinNumber"
+                value={formData.gstinNumber}
+                onChange={(e) =>
+                  handleChange({
+                    ...e,
+                    target: {
+                      ...e.target,
+                      name: "gstinNumber",
+                      value: e.target.value.toUpperCase(),
+                    },
+                  })
+                }
+                maxLength={15}
+                placeholder="Enter GSTIN number"
+                className="w-full rounded-lg border px-4 py-3 uppercase focus:border-green-500 focus:outline-none"
+              />
+
+              {errors.gstinNumber && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.gstinNumber}
+                </p>
+              )}
+            </div>
+
+            {/* City */}
+            <div>
+              <label className="mb-1 block font-medium">City *</label>
+
+              <select
+                name="cityId"
+                value={formData.cityId}
+                onChange={handleChange}
+                disabled={isLoadingCities}
+                className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none disabled:bg-gray-100"
+              >
+                <option value="">
+                  {isLoadingCities ? "Loading cities..." : "Select City"}
+                </option>
+
+                {cities.map((city) => (
+                  <option key={city._id} value={city._id}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+
+              {errors.cityId && (
+                <p className="mt-1 text-sm text-red-500">{errors.cityId}</p>
+              )}
+            </div>
           </div>
 
           {/* Passwords */}
@@ -350,7 +467,7 @@ export default function SellerSignupPage() {
             )}
           </div>
 
-          {serverError && <p className="text-red-500 text-sm">{serverError}</p>}
+          {serverError && <p className="text-sm text-red-500">{serverError}</p>}
 
           <button
             type="submit"

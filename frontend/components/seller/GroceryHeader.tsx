@@ -12,7 +12,7 @@ export default function GroceryHeader({ onMenuClick }: Props) {
         ☰
       </button>
 
-      <h1 className="text-lg sm:text-xl font-bold">Grocery Dashboard</h1>
+      <h1 className="text-lg sm:text-xl font-bold">Seller Dashboard</h1>
 
       {/* Right side */}
       <div />

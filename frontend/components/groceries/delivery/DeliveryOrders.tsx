@@ -2,6 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import {
   Package,
   MapPin,
@@ -20,28 +22,22 @@ import {
   getMyDeliveryOrders,
   updateDeliveryOrderStatus,
   type DeliveryOrder,
+  type DeliveryOrderStatus,
 } from "@/lib/deliveryApi";
+
+import { useAuth } from "@/context/authContext";
 
 type OrderTab = "available" | "pending" | "completed";
 
-type OrderStatus =
-  | "ordered"
-  | "confirmed"
-  | "notAvailable"
-  | "outForDelivery"
-  | "delivered"
-  | "cancelled";
-
-const statusLabels: Record<OrderStatus, string> = {
-  ordered: "Ordered",
-  confirmed: "Confirmed",
-  notAvailable: "Not Available",
-  outForDelivery: "Out for Delivery",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-};
+// ======================================================
+// Main Component
+// ======================================================
 
 export default function DeliveryOrders() {
+  const router = useRouter();
+
+  const { loading: authLoading, isLoggedIn } = useAuth();
+
   const [activeTab, setActiveTab] = useState<OrderTab>("available");
 
   const [orders, setOrders] = useState<DeliveryOrder[]>([]);
@@ -56,11 +52,8 @@ export default function DeliveryOrders() {
   // ======================================================
 
   const [currentPage, setCurrentPage] = useState(1);
-
   const [totalPages, setTotalPages] = useState(1);
-
   const [hasNextPage, setHasNextPage] = useState(false);
-
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
 
   // ======================================================
@@ -71,6 +64,10 @@ export default function DeliveryOrders() {
     tab: OrderTab = activeTab,
     page: number = currentPage,
   ) => {
+    if (!isLoggedIn) {
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
@@ -91,9 +88,9 @@ export default function DeliveryOrders() {
 
       setOrders(data.orders || []);
 
-      // --------------------------------------------------
-      // Pagination data from backend
-      // --------------------------------------------------
+      // ==================================================
+      // Pagination
+      // ==================================================
 
       if (data.pagination) {
         setCurrentPage(data.pagination.currentPage);
@@ -101,18 +98,25 @@ export default function DeliveryOrders() {
         setHasNextPage(data.pagination.hasNextPage);
         setHasPreviousPage(data.pagination.hasPreviousPage);
       } else {
-        // Fallback if backend does not return pagination
-        setCurrentPage(page);
-        setTotalPages(1);
-        setHasNextPage(false);
-        setHasPreviousPage(false);
+        const responseCurrentPage = data.page ?? page;
+        const responseTotalPages = data.totalPages ?? 1;
+
+        setCurrentPage(responseCurrentPage);
+        setTotalPages(responseTotalPages);
+
+        setHasNextPage(responseCurrentPage < responseTotalPages);
+        setHasPreviousPage(responseCurrentPage > 1);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Delivery Orders Error:", error);
 
       setOrders([]);
 
-      setError("Failed to load orders. Please try again.");
+      const message =
+        error?.response?.data?.message ||
+        "Failed to load orders. Please try again.";
+
+      setError(message);
 
       setCurrentPage(1);
       setTotalPages(1);
@@ -124,22 +128,36 @@ export default function DeliveryOrders() {
   };
 
   // ======================================================
-  // Initial Load / Tab Change
+  // Authentication / Initial Load / Tab Change
   // ======================================================
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!isLoggedIn) {
+      router.replace("/login");
+      return;
+    }
+
     setCurrentPage(1);
 
     fetchOrders(activeTab, 1);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, authLoading, isLoggedIn]);
 
   // ======================================================
   // Change Page
   // ======================================================
 
   const handlePageChange = (page: number) => {
+    if (!isLoggedIn) {
+      router.replace("/login");
+      return;
+    }
+
     if (page < 1 || page > totalPages || page === currentPage) {
       return;
     }
@@ -150,37 +168,26 @@ export default function DeliveryOrders() {
   };
 
   // ======================================================
-  // Accept Delivery
+  // Accept WHOLE Delivery Order
   // ======================================================
 
-  const handleAcceptDelivery = async (orderId: string, itemIndex: number) => {
-    const actionKey = `accept-${orderId}-${itemIndex}`;
+  const handleAcceptDelivery = async (orderId: string) => {
+    if (!isLoggedIn) {
+      router.replace("/login");
+      return;
+    }
+
+    const actionKey = `accept-${orderId}`;
 
     try {
       setActionLoading(actionKey);
       setError("");
 
-      await acceptDeliveryOrder(orderId, itemIndex);
+      await acceptDeliveryOrder(orderId);
 
-      // Remove the accepted item from the current
-      // available page.
+      // Remove from Available immediately.
       setOrders((currentOrders) =>
-        currentOrders
-          .map((order) => {
-            if (order._id !== orderId) {
-              return order;
-            }
-
-            const remainingItems = order.items.filter(
-              (_, index) => index !== itemIndex,
-            );
-
-            return {
-              ...order,
-              items: remainingItems,
-            };
-          })
-          .filter((order) => order.items.length > 0),
+        currentOrders.filter((order) => order._id !== orderId),
       );
     } catch (error: any) {
       console.error("Accept Delivery Error:", error);
@@ -195,24 +202,27 @@ export default function DeliveryOrders() {
   };
 
   // ======================================================
-  // Update Delivery Status
+  // Update WHOLE Delivery Order Status
   // ======================================================
 
   const handleStatusUpdate = async (
     orderId: string,
-    itemIndex: number,
     status: "outForDelivery" | "delivered" | "cancelled",
   ) => {
-    const actionKey = `${status}-${orderId}-${itemIndex}`;
+    if (!isLoggedIn) {
+      router.replace("/login");
+      return;
+    }
+
+    const actionKey = `${status}-${orderId}`;
 
     try {
       setActionLoading(actionKey);
       setError("");
 
-      await updateDeliveryOrderStatus(orderId, itemIndex, status);
+      await updateDeliveryOrderStatus(orderId, status);
 
-      // Refresh current page because the item may move
-      // from pending to completed.
+      // Refresh current tab after status change.
       await fetchOrders(activeTab, currentPage);
     } catch (error: any) {
       console.error("Update Delivery Status Error:", error);
@@ -227,13 +237,32 @@ export default function DeliveryOrders() {
   };
 
   // ======================================================
-  // Loading
+  // Authentication Loading
+  // ======================================================
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-75 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
+      </div>
+    );
+  }
+
+  // ======================================================
+  // Logged Out
+  // ======================================================
+
+  if (!isLoggedIn) {
+    return null;
+  }
+
+  // ======================================================
+  // Orders Loading
   // ======================================================
 
   if (loading) {
     return (
       <div className="space-y-5">
-        {/* Heading */}
         <div>
           <h1 className="text-xl font-bold text-gray-900">Orders</h1>
 
@@ -242,7 +271,6 @@ export default function DeliveryOrders() {
           </p>
         </div>
 
-        {/* Tabs */}
         <OrderTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
         <div className="rounded-xl border bg-white p-10 shadow-sm">
@@ -260,7 +288,6 @@ export default function DeliveryOrders() {
 
   return (
     <div className="space-y-5">
-      {/* Heading */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">Orders</h1>
 
@@ -269,10 +296,8 @@ export default function DeliveryOrders() {
         </p>
       </div>
 
-      {/* Tabs */}
       <OrderTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* Error */}
       {error && (
         <div className="flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 p-4">
           <p className="text-sm font-medium text-red-700">{error}</p>
@@ -290,7 +315,6 @@ export default function DeliveryOrders() {
         </div>
       )}
 
-      {/* Orders */}
       {orders.length === 0 ? (
         <EmptyOrders tab={activeTab} />
       ) : (
@@ -308,7 +332,6 @@ export default function DeliveryOrders() {
             ))}
           </div>
 
-          {/* Pagination */}
           <OrderPagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -342,7 +365,7 @@ function OrderTabs({ activeTab, setActiveTab }: OrderTabsProps) {
     },
     {
       key: "pending",
-      label: "Pending",
+      label: "My Orders",
     },
     {
       key: "completed",
@@ -385,11 +408,10 @@ interface DeliveryOrderCardProps {
   activeTab: OrderTab;
   actionLoading: string | null;
 
-  onAccept: (orderId: string, itemIndex: number) => void;
+  onAccept: (orderId: string) => void;
 
   onStatusUpdate: (
     orderId: string,
-    itemIndex: number,
     status: "outForDelivery" | "delivered" | "cancelled",
   ) => void;
 }
@@ -401,9 +423,33 @@ function DeliveryOrderCard({
   onAccept,
   onStatusUpdate,
 }: DeliveryOrderCardProps) {
+  const orderStatus = order.orderStatus;
+
+  const acceptKey = `accept-${order._id}`;
+  const outForDeliveryKey = `outForDelivery-${order._id}`;
+  const deliveredKey = `delivered-${order._id}`;
+  const cancelledKey = `cancelled-${order._id}`;
+
+  const canStartDelivery = order.canStartDelivery === true;
+
+  // ======================================================
+  // Determine seller resolution
+  // ======================================================
+
+  const hasUnresolvedItems = order.items.some(
+    (item) => item.orderStatus === "ordered",
+  );
+
+  const hasDeliverableItems = order.items.some(
+    (item) => item.orderStatus === "confirmed",
+  );
+
   return (
     <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-      {/* Order Header */}
+      {/* ==================================================
+          Order Header
+      ================================================== */}
+
       <div className="flex items-center justify-between border-b bg-gray-50 px-5 py-4">
         <div>
           <h2 className="font-semibold text-gray-900">#{order.orderNumber}</h2>
@@ -411,13 +457,26 @@ function DeliveryOrderCard({
           <p className="text-xs text-gray-500">{formatDate(order.createdAt)}</p>
         </div>
 
-        <span className="text-xs text-gray-500">
-          {order.items.length} item
-          {order.items.length !== 1 ? "s" : ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusClasses(
+              orderStatus,
+            )}`}
+          >
+            {statusLabels[orderStatus]}
+          </span>
+
+          <span className="text-xs text-gray-500">
+            {order.items.length} item
+            {order.items.length !== 1 ? "s" : ""}
+          </span>
+        </div>
       </div>
 
-      {/* Customer */}
+      {/* ==================================================
+          Customer
+      ================================================== */}
+
       <div className="border-b px-5 py-4">
         <h3 className="mb-3 text-sm font-semibold text-gray-900">Customer</h3>
 
@@ -441,26 +500,15 @@ function DeliveryOrderCard({
         </div>
       </div>
 
-      {/* Items */}
+      {/* ==================================================
+          Items
+      ================================================== */}
+
       <div className="divide-y">
         {order.items.map((item, itemIndex) => {
-          const status = item.orderStatus as OrderStatus;
-
-          const acceptKey = `accept-${order._id}-${itemIndex}`;
-
-          const outForDeliveryKey = `outForDelivery-${order._id}-${itemIndex}`;
-
-          const deliveredKey = `delivered-${order._id}-${itemIndex}`;
-
-          const cancelledKey = `cancelled-${order._id}-${itemIndex}`;
-
-          // ==================================================
-          // Price
-          // Backend price × quantity
-          // ==================================================
+          const status = item.orderStatus;
 
           const itemPrice = Number(item.price || 0);
-
           const itemQuantity = Number(item.quantity || 0);
 
           const totalPrice = itemPrice * itemQuantity;
@@ -471,7 +519,6 @@ function DeliveryOrderCard({
               className="px-5 py-5"
             >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                {/* Product Information */}
                 <div className="min-w-0">
                   <div className="flex items-start gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
@@ -480,27 +527,25 @@ function DeliveryOrderCard({
 
                     <div className="min-w-0">
                       <h4 className="font-medium text-gray-900">
-                        {item.product?.productName || "Product"}
+                        {item.product?.productName ||
+                          item.productName ||
+                          "Product"}
                       </h4>
 
-                      {/* Variant */}
                       {item.variant?.label && (
                         <p className="mt-1 text-xs text-gray-500">
                           Variant: {item.variant.label}
                         </p>
                       )}
 
-                      {/* Quantity */}
                       <p className="mt-2 text-xs text-gray-500">
                         Quantity: {item.quantity}
                       </p>
 
-                      {/* Price */}
                       <p className="mt-1 text-sm font-semibold text-gray-900">
                         ₹{totalPrice.toFixed(2)}
                       </p>
 
-                      {/* Seller */}
                       {item.seller && (
                         <div className="mt-2 space-y-1">
                           <p className="text-xs text-gray-500">
@@ -520,8 +565,7 @@ function DeliveryOrderCard({
                   </div>
                 </div>
 
-                {/* Status + Actions */}
-                <div className="flex flex-col items-start gap-3 lg:items-end">
+                <div className="flex items-center">
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusClasses(
                       status,
@@ -529,121 +573,156 @@ function DeliveryOrderCard({
                   >
                     {statusLabels[status]}
                   </span>
-
-                  {/* Available Order */}
-                  {activeTab === "available" && status === "confirmed" && (
-                    <button
-                      type="button"
-                      disabled={actionLoading === acceptKey}
-                      onClick={() => onAccept(order._id, itemIndex)}
-                      className="flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {actionLoading === acceptKey ? (
-                        <>
-                          <LoadingSpinner />
-                          Accepting...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 size={17} />
-                          Accept Delivery
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  {/* Pending - Confirmed */}
-                  {activeTab === "pending" && status === "confirmed" && (
-                    <button
-                      type="button"
-                      disabled={actionLoading === outForDeliveryKey}
-                      onClick={() =>
-                        onStatusUpdate(order._id, itemIndex, "outForDelivery")
-                      }
-                      className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {actionLoading === outForDeliveryKey ? (
-                        <>
-                          <LoadingSpinner />
-                          Updating...
-                        </>
-                      ) : (
-                        <>
-                          <Truck size={17} />
-                          Start Delivery
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  {/* Pending - Out For Delivery */}
-                  {activeTab === "pending" && status === "outForDelivery" && (
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={actionLoading === deliveredKey}
-                        onClick={() =>
-                          onStatusUpdate(order._id, itemIndex, "delivered")
-                        }
-                        className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {actionLoading === deliveredKey ? (
-                          <>
-                            <LoadingSpinner />
-                            Updating...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 size={17} />
-                            Delivered
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={actionLoading === cancelledKey}
-                        onClick={() =>
-                          onStatusUpdate(order._id, itemIndex, "cancelled")
-                        }
-                        className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {actionLoading === cancelledKey ? (
-                          <>
-                            <LoadingSpinner />
-                            Cancelling...
-                          </>
-                        ) : (
-                          <>
-                            <XCircle size={17} />
-                            Cancel
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Completed */}
-                  {activeTab === "completed" && (
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      {status === "delivered" ? (
-                        <>
-                          <CheckCircle2 size={15} className="text-green-600" />
-                          Delivery completed
-                        </>
-                      ) : (
-                        <>
-                          <XCircle size={15} className="text-red-600" />
-                          Delivery cancelled
-                        </>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
           );
         })}
+      </div>
+
+      {/* ==================================================
+          Delivery Actions
+      ================================================== */}
+
+      <div className="border-t bg-gray-50 px-5 py-4">
+        {/* ==================================================
+            AVAILABLE
+        ================================================== */}
+
+        {activeTab === "available" && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={actionLoading === acceptKey}
+              onClick={() => onAccept(order._id)}
+              className="flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {actionLoading === acceptKey ? (
+                <>
+                  <LoadingSpinner />
+                  Accepting...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={17} />
+                  Accept Delivery
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* ==================================================
+            PENDING / MY ORDERS
+        ================================================== */}
+
+        {activeTab === "pending" &&
+          orderStatus !== "outForDelivery" &&
+          orderStatus !== "delivered" &&
+          orderStatus !== "cancelled" && (
+            <>
+              {canStartDelivery ? (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    disabled={actionLoading === outForDeliveryKey}
+                    onClick={() => onStatusUpdate(order._id, "outForDelivery")}
+                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {actionLoading === outForDeliveryKey ? (
+                      <>
+                        <LoadingSpinner />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Truck size={17} />
+                        Out for Delivery
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-end gap-2 text-sm text-gray-500">
+                  <Clock3 size={16} />
+
+                  {hasUnresolvedItems ? (
+                    <span>Waiting for seller confirmation</span>
+                  ) : !hasDeliverableItems ? (
+                    <span>No available items to deliver</span>
+                  ) : (
+                    <span>Delivery cannot start yet</span>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+        {/* ==================================================
+            OUT FOR DELIVERY
+        ================================================== */}
+
+        {activeTab === "pending" && orderStatus === "outForDelivery" && (
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={actionLoading === deliveredKey}
+              onClick={() => onStatusUpdate(order._id, "delivered")}
+              className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {actionLoading === deliveredKey ? (
+                <>
+                  <LoadingSpinner />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={17} />
+                  Delivered
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              disabled={actionLoading === cancelledKey}
+              onClick={() => onStatusUpdate(order._id, "cancelled")}
+              className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {actionLoading === cancelledKey ? (
+                <>
+                  <LoadingSpinner />
+                  Cancelling...
+                </>
+              ) : (
+                <>
+                  <XCircle size={17} />
+                  Cancel
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* ==================================================
+            COMPLETED
+        ================================================== */}
+
+        {activeTab === "completed" && (
+          <div className="flex justify-end">
+            {orderStatus === "delivered" ? (
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <CheckCircle2 size={15} className="text-green-600" />
+                Delivery completed
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <XCircle size={15} className="text-red-600" />
+                Delivery cancelled
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -674,7 +753,6 @@ function OrderPagination({
 
   return (
     <div className="flex items-center justify-between rounded-xl border bg-white px-4 py-3 shadow-sm">
-      {/* Previous */}
       <button
         type="button"
         disabled={!hasPreviousPage}
@@ -685,13 +763,11 @@ function OrderPagination({
         <span className="hidden sm:inline">Previous</span>
       </button>
 
-      {/* Page */}
       <span className="text-sm text-gray-600">
         Page <span className="font-semibold text-gray-900">{currentPage}</span>{" "}
         of <span className="font-semibold text-gray-900">{totalPages}</span>
       </span>
 
-      {/* Next */}
       <button
         type="button"
         disabled={!hasNextPage}
@@ -813,11 +889,27 @@ function formatAddress(address: unknown): string {
 }
 
 // ======================================================
+// Status Labels
+// ======================================================
+
+const statusLabels: Record<DeliveryOrderStatus, string> = {
+  ordered: "Ordered",
+  confirmed: "Confirmed",
+  notAvailable: "Not Available",
+  outForDelivery: "Out for Delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
+
+// ======================================================
 // Status Classes
 // ======================================================
 
-function getStatusClasses(status: OrderStatus) {
+function getStatusClasses(status: DeliveryOrderStatus) {
   switch (status) {
+    case "ordered":
+      return "bg-gray-100 text-gray-700";
+
     case "confirmed":
       return "bg-yellow-100 text-yellow-700";
 

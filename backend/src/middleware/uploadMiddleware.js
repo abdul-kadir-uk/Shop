@@ -1,4 +1,5 @@
 // src/middleware/uploadMiddleware.js
+
 import multer from "multer";
 import sharp from "sharp";
 
@@ -9,7 +10,7 @@ import sharp from "sharp";
 const storage = multer.memoryStorage();
 
 // =========================
-// Allowed Image Types
+// Allowed Product Image Types
 // =========================
 
 const allowedMimeTypes = [
@@ -22,7 +23,7 @@ const allowedMimeTypes = [
 ];
 
 // =========================
-// File Filter
+// Product Image File Filter
 // =========================
 
 const fileFilter = (req, file, cb) => {
@@ -37,7 +38,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 // =========================
-// Multer Upload
+// Product Image Upload
 // =========================
 
 export const uploadProductImages = multer({
@@ -46,7 +47,7 @@ export const uploadProductImages = multer({
   fileFilter,
 
   limits: {
-    fileSize: 20 * 1024 * 1024, // 20 MB per image
+    fileSize: 20 * 1024 * 1024,
   },
 }).fields([
   {
@@ -61,7 +62,7 @@ export const uploadProductImages = multer({
 ]);
 
 // =========================
-// Image Compression Middleware
+// Product Image Compression
 // =========================
 
 export const compressProductImages = async (req, res, next) => {
@@ -119,3 +120,35 @@ export const compressProductImages = async (req, res, next) => {
     });
   }
 };
+
+// ==========================================================
+// Aadhaar Document Upload
+// ==========================================================
+
+const aadhaarFileFilter = (req, file, cb) => {
+  const allowedAadhaarTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "application/pdf",
+  ];
+
+  if (!allowedAadhaarTypes.includes(file.mimetype)) {
+    return cb(
+      new Error("Only JPG, JPEG, PNG and PDF Aadhaar documents are allowed."),
+      false,
+    );
+  }
+
+  cb(null, true);
+};
+
+export const uploadAadhaarDocument = multer({
+  storage,
+
+  fileFilter: aadhaarFileFilter,
+
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB
+  },
+}).single("aadhaarDocument");

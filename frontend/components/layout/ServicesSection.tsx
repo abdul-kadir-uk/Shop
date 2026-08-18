@@ -9,16 +9,9 @@ export default function ServicesSection() {
         <div className="grid md:grid-cols-2 gap-8">
           <ServiceCard
             title="Groceries"
-            description="Fresh vegetables, fruits, dairy products, snacks and daily essentials."
+            description="All groceries Product that you need."
             href="/groceries"
             image="/images/groceries.jpg"
-          />
-
-          <ServiceCard
-            title="Mobile Repair"
-            description="Screen replacement, battery repair, software troubleshooting and complete servicing."
-            href="/mobile-repair"
-            image="/images/mobile-repair.jpg"
           />
         </div>
       </div>

@@ -1,7 +1,7 @@
+// components/groceries/product details/ProductGallery.tsx
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 
 type ImageType = {
   url: string;
@@ -37,12 +37,10 @@ export default function ProductGallery({ product }: ProductGalleryProps) {
     <div className="space-y-4">
       {/* Main Image */}
       <div className="relative aspect-square overflow-hidden rounded-xl border bg-white">
-        <Image
+        <img
           src={selectedImage}
           alt={product.productName}
           loading="eager"
-          fill
-          priority
           className="object-contain p-4"
           sizes="(max-width:768px)100vw,50vw"
         />
@@ -62,10 +60,9 @@ export default function ProductGallery({ product }: ProductGalleryProps) {
                     : "border-gray-200"
                 }`}
             >
-              <Image
+              <img
                 src={image.url}
                 alt={`${product.productName}-${index + 1}`}
-                fill
                 className="object-cover"
                 sizes="100px"
               />

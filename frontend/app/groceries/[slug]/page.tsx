@@ -1,4 +1,4 @@
-// App/groceries/[slug]/page.tsx
+// app/groceries/[slug]/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,6 +8,14 @@ import { getSingleGrocery } from "@/lib/groceryApi";
 
 import ProductGallery from "@/components/groceries/product details/ProductGallery";
 import ProductInfo from "@/components/groceries/product details/ProductInfo";
+
+type ProductVariant = {
+  label: string;
+  price: number;
+  discountPrice: number | null;
+  stock: number;
+  isDefault: boolean;
+};
 
 type Product = {
   _id: string;
@@ -37,7 +45,7 @@ type Product = {
     url: string;
   }[];
 
-  variants: any[];
+  variants: ProductVariant[];
 };
 
 export default function GroceryDetailsPage() {
@@ -80,6 +88,7 @@ export default function GroceryDetailsPage() {
     <div className="mx-auto max-w-7xl p-4">
       <div className="grid gap-10 lg:grid-cols-2">
         <ProductGallery product={product} />
+
         <ProductInfo product={product} />
       </div>
     </div>
