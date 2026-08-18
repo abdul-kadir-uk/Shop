@@ -1,6 +1,7 @@
+// app/groceries/checkout/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ShoppingBag } from "lucide-react";
 
@@ -81,7 +82,7 @@ type CheckoutData = {
   }[];
 };
 
-export default function GroceryCheckoutPage() {
+function GroceryCheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -509,5 +510,23 @@ export default function GroceryCheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ======================================================
+// Suspense Boundary
+// ======================================================
+
+export default function GroceryCheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-gray-500">Loading checkout...</div>
+        </div>
+      }
+    >
+      <GroceryCheckoutContent />
+    </Suspense>
   );
 }
