@@ -3,6 +3,7 @@ import express from "express";
 import protect from "../middleware/authMiddleware.js";
 import {
   customerSignup,
+  verifyCustomerSignupOtp,
   sellerSignup,
   deliverySignup,
   login,
@@ -21,6 +22,8 @@ const router = express.Router();
 
 // Customer
 router.post("/customer/signup", customerSignup);
+
+router.post("/customer/signup/verify-otp", verifyCustomerSignupOtp);
 
 // Seller
 router.post("/seller/signup", sellerSignup);
