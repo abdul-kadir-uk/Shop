@@ -1,3 +1,4 @@
+// adminApi.ts
 import axios from "axios";
 
 const adminApi = axios.create({

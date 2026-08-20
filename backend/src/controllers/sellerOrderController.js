@@ -10,8 +10,6 @@ import {
   SELLER_ALLOWED_STATUS,
 } from "../constants/orderStatus.js";
 
-import { notifyCustomerSellerItemStatus } from "../services/telegramNotificationService.js";
-
 /* ==========================================================
    Seller Orders
    GET /api/seller/orders
@@ -585,20 +583,6 @@ export const updateSellerOrderStatus = async (req, res) => {
     // ------------------------------------------------------
 
     await order.save();
-
-    // ------------------------------------------------------
-    // Send Telegram notification for every updated item
-    // ------------------------------------------------------
-
-    for (const { item } of updatedItems) {
-      notifyCustomerSellerItemStatus({
-        order,
-        item,
-        status,
-      }).catch((error) => {
-        console.error("Customer Telegram Notification Error:", error);
-      });
-    }
 
     // ------------------------------------------------------
     // Response

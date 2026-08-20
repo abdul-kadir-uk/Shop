@@ -326,6 +326,7 @@ export const getDeliveryPartners = async (req, res) => {
 export const getDeliveryPartnerById = async (req, res) => {
   try {
     const { id } = req.params;
+    const deliveryPartner = await DeliveryPartner.findById(id);
 
     const delivery = await DeliveryPartner.findById(id).populate(
       "userId",
@@ -351,6 +352,7 @@ export const getDeliveryPartnerById = async (req, res) => {
         aadhaarNumber: delivery.aadhaarNumber,
         aadhaarDocument: delivery.aadhaarDocument,
         approvalStatus: delivery.approvalStatus,
+        earningPerDelivery: deliveryPartner.earningPerDelivery,
         role: delivery.userId.role,
         isVerified: delivery.userId.isVerified,
         isBlocked: delivery.userId.isBlocked,

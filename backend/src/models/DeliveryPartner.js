@@ -59,6 +59,11 @@ const deliveryPartnerSchema = new mongoose.Schema(
         ref: "City",
       },
     ],
+    earningPerDelivery: {
+      type: Number,
+      default: 10,
+      min: 0,
+    },
   },
   {
     timestamps: true,

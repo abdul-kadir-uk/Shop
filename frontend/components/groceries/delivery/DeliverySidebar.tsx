@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, User, X, Truck } from "lucide-react";
+import { LayoutDashboard, Package, User, X, Truck, Wallet } from "lucide-react";
 
 interface DeliverySidebarProps {
   isOpen: boolean;
@@ -19,6 +19,12 @@ const menuItems = [
     label: "Orders",
     href: "/delivery/grocery/orders",
     icon: Package,
+  },
+
+  {
+    label: "Earnings",
+    href: "/delivery/grocery/earnings",
+    icon: Wallet,
   },
   {
     label: "Profile",

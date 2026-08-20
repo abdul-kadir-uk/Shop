@@ -29,7 +29,7 @@ export default function LoginPage() {
 
     switch (user.role) {
       case "customer":
-        router.replace("/customer/dashboard");
+        router.replace("/");
         break;
 
       case "seller":

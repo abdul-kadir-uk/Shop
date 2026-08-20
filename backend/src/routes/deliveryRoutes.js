@@ -16,6 +16,8 @@ import {
   updateDeliveryOrderStatus,
 } from "../controllers/deliveryOrderController.js";
 
+import { getMyDailyDeliveryEarnings } from "../controllers/earningController.js";
+
 const router = express.Router();
 
 // ======================================================
@@ -34,6 +36,9 @@ router.get(
 // ======================================================
 
 router.get("/profile", protect, getDeliveryProfile);
+
+// earnings route
+router.get("/earnings/daily", protect, getMyDailyDeliveryEarnings);
 
 // ======================================================
 // Available Delivery Orders

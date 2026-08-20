@@ -72,6 +72,25 @@ import {
   getAdminCancelledOrders,
 } from "../controllers/adminOrderController.js";
 
+// ======================
+// EARNING CONTROLLER
+// ======================
+
+import {
+  markDeliveryDayEarningsAsPaid,
+  updateDeliveryPartnerEarningRate,
+  getAllDeliveryPartnerDailyEarnings,
+} from "../controllers/earningController.js";
+
+// ======================
+// SELLER EARNING CONTROLLER
+// ======================
+
+import {
+  getAdminSellerEarnings,
+  updateSellerEarningPaymentStatus,
+} from "../controllers/adminSellerEarningsController.js";
+
 import adminMiddleware from "../middleware/adminMiddleware.js";
 import protect from "../middleware/authMiddleware.js";
 
@@ -108,7 +127,10 @@ router.patch(
   unblockCustomer,
 );
 router.delete("/customer/:id", protect, adminMiddleware, deleteCustomer);
-// Seller Management (Admin)
+
+// ======================
+// SELLER MANAGEMENT
+// ======================
 
 router.get("/sellers", protect, adminMiddleware, getSellers);
 
@@ -155,8 +177,52 @@ router.delete(
 );
 
 // ======================
+// DELIVERY PARTNER EARNINGS
+// ======================
+
+router.patch(
+  "/delivery/earnings/:deliveryPartnerId/rate",
+  protect,
+  adminMiddleware,
+  updateDeliveryPartnerEarningRate,
+);
+
+router.patch(
+  "/delivery/earnings/:deliveryPartnerId/day-paid",
+  protect,
+  adminMiddleware,
+  markDeliveryDayEarningsAsPaid,
+);
+
+router.get(
+  "/delivery/earnings/daily",
+  protect,
+  adminMiddleware,
+  getAllDeliveryPartnerDailyEarnings,
+);
+
+// ======================
+// SELLER EARNINGS
+// ======================
+
+router.get(
+  "/seller-earnings",
+  protect,
+  adminMiddleware,
+  getAdminSellerEarnings,
+);
+
+router.patch(
+  "/seller-earnings/:earningId/status",
+  protect,
+  adminMiddleware,
+  updateSellerEarningPaymentStatus,
+);
+
+// ======================
 // DELIVERY PARTNER LOCATION ASSIGNMENT
 // ======================
+
 router.post(
   "/delivery-partners/:deliveryPartnerId/assignments",
   protect,
@@ -184,6 +250,7 @@ router.delete(
   adminMiddleware,
   removeDeliveryPartnerAssignment,
 );
+
 // ======================
 // REQUEST MANAGEMENT
 // ======================
@@ -273,8 +340,6 @@ router.delete("/cities/:id", protect, adminMiddleware, deleteCity);
 router.post("/areas", protect, adminMiddleware, createArea);
 
 // Get All Areas
-// Optional query:
-// /api/admin/areas?cityId=CITY_ID
 router.get("/areas", protect, adminMiddleware, getAreas);
 
 // Update Area

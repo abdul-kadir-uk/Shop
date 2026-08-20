@@ -21,6 +21,10 @@ const menuItems = [
     href: "/seller/grocery/orders",
   },
   {
+    title: "Sells",
+    href: "/seller/grocery/sells",
+  },
+  {
     title: "Profile",
     href: "/seller/grocery/profile",
   },

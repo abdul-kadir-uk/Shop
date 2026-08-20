@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Search, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Search, PackageCheck } from "lucide-react";
 import adminApi from "@/lib/adminApi";
 
 interface Customer {
@@ -20,6 +20,7 @@ interface Seller {
 interface DeliveryPartner {
   _id: string;
   name?: string;
+  email?: string;
   userId?: {
     _id?: string;
     name?: string;
@@ -38,28 +39,37 @@ interface OrderItem {
   product?: Product;
   seller?: Seller;
   deliveryPartner?: DeliveryPartner | null;
-  orderStatus?: string;
+
   quantity?: number;
   price?: number;
   totalPrice?: number;
+
+  orderStatus?: string;
+  deliveredAt?: string;
 }
 
 interface AdminOrder {
   _id: string;
   orderNumber?: string;
+
   customer?: Customer | null;
+
   items?: OrderItem[];
+
   orderStatus: string;
+
   paymentStatus?: string;
   paymentMethod?: string;
+
   totalAmount?: number;
   grandTotal?: number;
   total?: number;
+
   createdAt: string;
   updatedAt?: string;
 }
 
-interface AdminOrdersResponse {
+interface CompletedOrdersResponse {
   success: boolean;
   page: number;
   limit: number;
@@ -67,8 +77,6 @@ interface AdminOrdersResponse {
   totalPages: number;
   orders: AdminOrder[];
 }
-
-const ACTIVE_STATUSES = ["ordered", "confirmed", "outForDelivery"];
 
 const formatStatus = (status: string) => {
   switch (status) {
@@ -78,11 +86,11 @@ const formatStatus = (status: string) => {
     case "confirmed":
       return "Confirmed";
 
-    case "outForDelivery":
-      return "Out for Delivery";
-
     case "notAvailable":
       return "Not Available";
+
+    case "outForDelivery":
+      return "Out for Delivery";
 
     case "delivered":
       return "Delivered";
@@ -97,8 +105,8 @@ const formatStatus = (status: string) => {
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case "ordered":
-      return "bg-yellow-100 text-yellow-700";
+    case "delivered":
+      return "bg-green-100 text-green-700";
 
     case "confirmed":
       return "bg-green-100 text-green-700";
@@ -106,11 +114,11 @@ const getStatusColor = (status: string) => {
     case "outForDelivery":
       return "bg-blue-100 text-blue-700";
 
+    case "ordered":
+      return "bg-yellow-100 text-yellow-700";
+
     case "notAvailable":
       return "bg-orange-100 text-orange-700";
-
-    case "delivered":
-      return "bg-green-100 text-green-700";
 
     case "cancelled":
       return "bg-red-100 text-red-700";
@@ -241,7 +249,7 @@ const getSearchableText = (order: AdminOrder) => {
     .toLowerCase();
 };
 
-export default function OrdersPage() {
+export default function CompletedOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
 
   const [search, setSearch] = useState("");
@@ -259,13 +267,13 @@ export default function OrdersPage() {
   const LIMIT = 100;
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchCompletedOrders = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const response = await adminApi.get<AdminOrdersResponse>(
-          "/admin/orders",
+        const response = await adminApi.get<CompletedOrdersResponse>(
+          "/admin/orders/completed",
           {
             params: {
               page,
@@ -274,48 +282,43 @@ export default function OrdersPage() {
           },
         );
 
-        if (!response.data.success) {
-          throw new Error("Failed to fetch orders.");
+        if (!response.data.success || !Array.isArray(response.data.orders)) {
+          throw new Error("Failed to fetch completed orders.");
         }
 
-        const fetchedOrders = response.data.orders || [];
-
         /*
-         * Only active orders are shown here:
+         * Backend endpoint already returns:
          *
-         * ordered
-         * confirmed
-         * outForDelivery
+         * orderStatus = delivered
          *
-         * Delivered, cancelled and notAvailable
-         * are intentionally excluded.
+         * Keep frontend safety filter.
          */
 
-        const activeOrders = fetchedOrders.filter((order) =>
-          ACTIVE_STATUSES.includes(order.orderStatus),
+        const completedOrders = response.data.orders.filter(
+          (order) => order.orderStatus === "delivered",
         );
 
-        setOrders(activeOrders);
+        setOrders(completedOrders);
 
-        setTotalOrders(activeOrders.length);
+        setTotalOrders(response.data.totalOrders ?? completedOrders.length);
 
         setTotalPages(response.data.totalPages || 1);
       } catch (err) {
-        console.error("Fetch Admin Orders Error:", err);
+        console.error("Fetch Completed Admin Orders Error:", err);
 
         setError(
-          "Failed to load orders. Please refresh the page and try again.",
+          "Failed to load completed orders. Please refresh the page and try again.",
         );
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOrders();
+    fetchCompletedOrders();
   }, [page]);
 
   /*
-   * Search orders
+   * Search
    */
 
   const filteredOrders = useMemo(() => {
@@ -331,7 +334,7 @@ export default function OrdersPage() {
   }, [orders, search]);
 
   /*
-   * Group orders by date
+   * Group orders by created date
    */
 
   const groupedOrders = useMemo(() => {
@@ -348,7 +351,7 @@ export default function OrdersPage() {
     });
 
     /*
-     * Newest order first inside each date.
+     * Newest orders first inside each date.
      */
 
     Object.values(groups).forEach((dateOrders) => {
@@ -373,7 +376,7 @@ export default function OrdersPage() {
   }, [filteredOrders]);
 
   /*
-   * Reset to first page when search changes.
+   * Reset page when search changes.
    */
 
   useEffect(() => {
@@ -381,26 +384,30 @@ export default function OrdersPage() {
   }, [search]);
 
   return (
-    <div className="space-y-3">
-      {/* Heading */}
+    <div className="space-y-6">
+      {/* Header */}
 
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-            Orders
-          </h1>
+          <div className="flex items-center gap-3">
+            <PackageCheck size={30} className="text-green-600" />
+
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+              Completed Orders
+            </h1>
+          </div>
 
           <p className="text-gray-500 mt-1 text-sm md:text-base">
-            Monitor active marketplace orders.
+            View all delivered marketplace orders.
           </p>
         </div>
 
         <Link
-          href="/owner/admin/orders/completed"
-          className="inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 transition text-white px-4 py-2.5 rounded-lg font-medium"
+          href="/owner/admin/orders"
+          className="inline-flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 transition text-gray-700 px-4 py-2.5 rounded-lg font-medium"
         >
-          <CheckCircle2 size={18} />
-          Completed Orders
+          <ArrowLeft size={18} />
+          Active Orders
         </Link>
       </div>
 
@@ -427,7 +434,7 @@ export default function OrdersPage() {
 
       {loading && (
         <div className="bg-white rounded-xl shadow p-10 text-center">
-          <p className="text-gray-500">Loading orders...</p>
+          <p className="text-gray-500">Loading completed orders...</p>
         </div>
       )}
 
@@ -445,19 +452,19 @@ export default function OrdersPage() {
         <div className="bg-white rounded-xl shadow p-10 text-center">
           <p className="text-gray-600 font-medium">
             {search
-              ? "No orders found matching your search."
-              : "No active orders available."}
+              ? "No completed orders found matching your search."
+              : "No completed orders available."}
           </p>
         </div>
       )}
 
-      {/* Grouped Orders */}
+      {/* Date Groups */}
 
       {!loading && !error && groupedOrders.length > 0 && (
         <div className="space-y-8">
           {groupedOrders.map(([date, dateOrders]) => (
             <section key={date} className="space-y-3">
-              {/* Date Heading */}
+              {/* Date */}
 
               <div className="flex items-center gap-3">
                 <h2 className="text-lg md:text-xl font-bold text-gray-800 whitespace-nowrap">
@@ -473,87 +480,120 @@ export default function OrdersPage() {
               </div>
 
               {/* Orders Table */}
+
               <div className="bg-white rounded-xl shadow overflow-hidden">
-                <div className="overflow-x-auto w-full">
-                  <div className="min-w-225">
-                    {/* Table Header */}
-                    <div className="grid grid-cols-[200px_1fr_1fr_1fr_110px_130px] bg-gray-100 border-b text-sm">
-                      <div className="text-left px-3 py-3 font-semibold whitespace-nowrap">
-                        Order ID
-                      </div>
-                      <div className="text-left px-3 py-3 font-semibold whitespace-nowrap">
-                        Customer
-                      </div>
-                      <div className="text-left px-3 py-3 font-semibold whitespace-nowrap">
-                        Seller
-                      </div>
-                      <div className="text-left px-3 py-3 font-semibold whitespace-nowrap">
-                        Delivery Partner
-                      </div>
-                      <div className="text-left px-3 py-3 font-semibold whitespace-nowrap">
-                        Amount
-                      </div>
-                      <div className="text-left px-3 py-3 font-semibold whitespace-nowrap">
-                        Status
-                      </div>
-                    </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="text-left px-2 md:px-3 py-3 whitespace-nowrap">
+                          Order ID
+                        </th>
 
-                    {/* Table Rows */}
-                    {dateOrders.map((order) => (
-                      <Link
-                        key={order._id}
-                        href={`/owner/admin/orders/${order._id}`}
-                        className="grid grid-cols-[200px_1fr_1fr_1fr_110px_130px] border-b last:border-b-0 hover:bg-green-50 transition text-sm items-center"
-                      >
-                        {/* Order ID */}
-                        <div className="px-3 py-4 font-semibold truncate">
-                          {order.orderNumber || `#${order._id}`}
-                        </div>
+                        <th className="text-left px-2 md:px-3 py-3 whitespace-nowrap">
+                          Customer
+                        </th>
 
-                        {/* Customer */}
-                        <div className="px-3 py-4 min-w-0">
-                          <p className="font-medium text-gray-800 truncate">
-                            {order.customer?.name || "-"}
-                          </p>
-                          {order.customer?.mobile && (
-                            <p className="text-xs text-gray-500 truncate">
-                              {order.customer.mobile}
-                            </p>
-                          )}
-                        </div>
+                        <th className="text-left px-2 md:px-3 py-3 whitespace-nowrap">
+                          Seller
+                        </th>
 
-                        {/* Seller */}
-                        <div className="px-3 py-4 min-w-0">
-                          <p className="text-gray-700 truncate">
-                            {getSellerNames(order)}
-                          </p>
-                        </div>
+                        <th className="text-left px-2 md:px-3 py-3 whitespace-nowrap">
+                          Delivery Partner
+                        </th>
 
-                        {/* Delivery Partner */}
-                        <div className="px-3 py-4 min-w-0">
-                          <p className="text-gray-700 truncate">
-                            {getDeliveryPartnerNames(order)}
-                          </p>
-                        </div>
+                        <th className="text-left px-2 md:px-3 py-3 whitespace-nowrap">
+                          Amount
+                        </th>
 
-                        {/* Amount */}
-                        <div className="px-3 py-4 font-medium whitespace-nowrap">
-                          {formatCurrency(getOrderAmount(order))}
-                        </div>
+                        <th className="text-left px-2 md:px-3 py-3 whitespace-nowrap">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
 
-                        {/* Status */}
-                        <div className="px-3 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                              order.orderStatus,
-                            )}`}
-                          >
-                            {formatStatus(order.orderStatus)}
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
+                    <tbody>
+                      {dateOrders.map((order) => (
+                        <tr
+                          key={order._id}
+                          className="border-t hover:bg-green-50 transition"
+                        >
+                          {/* Order ID */}
+                          <td className="p-0 font-semibold whitespace-nowrap">
+                            <Link
+                              href={`/owner/admin/orders/${order._id}`}
+                              className="block px-2 md:px-3 py-4 w-full h-full text-gray-900"
+                            >
+                              {order.orderNumber || `#${order._id}`}
+                            </Link>
+                          </td>
+
+                          {/* Customer */}
+                          <td className="p-0">
+                            <Link
+                              href={`/owner/admin/orders/${order._id}`}
+                              className="block px-2 md:px-3 py-4 w-full h-full"
+                            >
+                              <p className="font-medium text-gray-800">
+                                {order.customer?.name || "-"}
+                              </p>
+                              {order.customer?.mobile && (
+                                <p className="text-xs text-gray-500">
+                                  {order.customer.mobile}
+                                </p>
+                              )}
+                            </Link>
+                          </td>
+
+                          {/* Seller */}
+                          <td className="p-0">
+                            <Link
+                              href={`/owner/admin/orders/${order._id}`}
+                              className="block px-2 md:px-3 py-4 w-full h-full text-gray-700"
+                            >
+                              {getSellerNames(order)}
+                            </Link>
+                          </td>
+
+                          {/* Delivery Partner */}
+                          <td className="p-0">
+                            <Link
+                              href={`/owner/admin/orders/${order._id}`}
+                              className="block px-2 md:px-3 py-4 w-full h-full text-gray-700"
+                            >
+                              {getDeliveryPartnerNames(order)}
+                            </Link>
+                          </td>
+
+                          {/* Amount */}
+                          <td className="p-0 font-medium whitespace-nowrap">
+                            <Link
+                              href={`/owner/admin/orders/${order._id}`}
+                              className="block px-2 md:px-3 py-4 w-full h-full text-gray-900"
+                            >
+                              {formatCurrency(getOrderAmount(order))}
+                            </Link>
+                          </td>
+
+                          {/* Status */}
+                          <td className="p-0 whitespace-nowrap">
+                            <Link
+                              href={`/owner/admin/orders/${order._id}`}
+                              className="block px-2 md:px-3 py-4 w-full h-full"
+                            >
+                              <span
+                                className={`px-3 py-1 rounded-full text-sm font-medium inline-block ${getStatusColor(
+                                  order.orderStatus,
+                                )}`}
+                              >
+                                {formatStatus(order.orderStatus)}
+                              </span>
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </section>
@@ -566,7 +606,7 @@ export default function OrdersPage() {
       {!loading && !error && totalPages > 1 && (
         <div className="bg-white rounded-xl shadow p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-500">
-            Showing {totalOrders} active orders from this page
+            Showing {orders.length} completed orders from this page
           </p>
 
           <div className="flex items-center gap-2">

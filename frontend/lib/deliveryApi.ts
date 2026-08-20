@@ -289,6 +289,48 @@ export const getDeliveryProfile =
   };
 
 // ======================================================
+// Daily Delivery Earnings
+//
+// GET /api/delivery/earnings/daily?page=1
+//
+// Returns maximum 5 days per request.
+// ======================================================
+
+export interface DailyDeliveryEarning {
+  date: string;
+  totalOrders: number;
+  totalEarnings: number;
+  paymentStatus: "pending" | "paid";
+}
+
+export interface DailyDeliveryEarningsPagination {
+  page: number;
+  limit: number;
+  totalDays: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface DailyDeliveryEarningsResponse {
+  success: boolean;
+  data: DailyDeliveryEarning[];
+  pagination: DailyDeliveryEarningsPagination;
+}
+
+export const getMyDailyDeliveryEarnings = async (
+  page: number = 1,
+): Promise<DailyDeliveryEarningsResponse> => {
+  const response = await api.get("/delivery/earnings/daily", {
+    params: {
+      page,
+    },
+  });
+
+  return response.data;
+};
+
+// ======================================================
 // Get Available Delivery Orders
 //
 // GET /api/delivery/orders

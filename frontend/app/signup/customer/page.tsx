@@ -120,7 +120,7 @@ export default function CustomerSignupPage() {
 
           {/* Phone */}
           <input
-            type="tel"
+            type="number"
             name="phone"
             placeholder="Phone Number"
             value={formData.phone}

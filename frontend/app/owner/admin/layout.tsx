@@ -1,4 +1,4 @@
-// Layout.tsx a
+// app/owner/admin/Layout.tsx
 "use client";
 
 import Link from "next/link";
@@ -83,6 +83,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     {
       name: "Orders",
       href: "/owner/admin/orders",
+    },
+    {
+      name: "Delivery-Earnings",
+      href: "/owner/admin/delivery-earnings",
+    },
+    {
+      name: "Seller-Earnings",
+      href: "/owner/admin/seller-earnings",
     },
     {
       name: "Revenue",

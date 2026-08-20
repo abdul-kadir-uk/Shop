@@ -15,6 +15,8 @@ import {
   updateSellerOrderStatus,
 } from "../controllers/sellerOrderController.js";
 
+import { getSellerEarnings } from "../controllers/sellerEarningsController.js";
+
 const router = express.Router();
 
 // ================= Dashboard =================
@@ -25,6 +27,10 @@ router.get("/profile", protect, getSellerProfile);
 
 // get orders
 router.get("/orders", protect, requireApprovedSeller, getSellerOrders);
+
+// ================= Earnings =================
+
+router.get("/earnings", protect, requireApprovedSeller, getSellerEarnings);
 
 // get single order
 router.get(

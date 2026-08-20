@@ -3,18 +3,13 @@
 import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import DeliveryPartner from "../models/DeliveryPartner.js";
+import { createDeliveryEarning } from "../services/earnings/deliveryEarningService.js";
 
 import {
   ORDER_STATUS,
   DELIVERY_ALLOWED_STATUS,
   PAYMENT_STATUS,
 } from "../constants/orderStatus.js";
-
-import {
-  notifyCustomerDeliveryAccepted,
-  notifyCustomerOutForDelivery,
-  notifyCustomerOrderDelivered,
-} from "../services/telegramNotificationService.js";
 
 // ======================================================
 // Helper: Check whether item is seller-resolved
@@ -82,7 +77,6 @@ const hasDeliverableItems = (items = []) => {
 // deliveryPartner: null
 //
 // The order IS available.
-// ======================================================
 
 export const getAvailableDeliveryOrders = async (req, res) => {
   try {
@@ -340,14 +334,6 @@ export const acceptDeliveryOrder = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Notification
-    // --------------------------------------------------
-
-    notifyCustomerDeliveryAccepted(updatedOrder).catch((error) => {
-      console.error("Delivery Accepted Telegram Error:", error);
-    });
-
-    // --------------------------------------------------
     // Response
     // --------------------------------------------------
 
@@ -452,19 +438,6 @@ export const getMyDeliveryOrders = async (req, res) => {
     // --------------------------------------------------
     // Parent order status
     // --------------------------------------------------
-    //
-    // IMPORTANT:
-    //
-    // Seller item status is NOT used here.
-    //
-    // Pending means the DELIVERY process has not finished.
-    //
-    // ordered:
-    // Seller may still be resolving items.
-    //
-    // outForDelivery:
-    // Delivery is currently active.
-    // --------------------------------------------------
 
     let orderStatusQuery;
 
@@ -490,24 +463,8 @@ export const getMyDeliveryOrders = async (req, res) => {
     // --------------------------------------------------
     // Find orders
     // --------------------------------------------------
-    //
-    // IMPORTANT:
-    //
-    // We only require that this delivery partner is
-    // assigned to at least one item.
-    //
-    // We DO NOT filter item.orderStatus.
-    //
-    // Therefore:
-    //
-    // ordered item       -> visible
-    // confirmed item     -> visible
-    // notAvailable item  -> visible
-    //
-    // as long as parent order is pending.
-    // --------------------------------------------------
 
-    const orders = await Order.find({
+    const orderQuery = {
       orderStatus: orderStatusQuery,
 
       items: {
@@ -515,7 +472,25 @@ export const getMyDeliveryOrders = async (req, res) => {
           deliveryPartner: deliveryPartner._id,
         },
       },
-    })
+    };
+
+    // --------------------------------------------------
+    // IMPORTANT:
+    //
+    // For pending orders, exclude orders where ALL items
+    // are no longer deliverable.
+    //
+    // An order remains visible if it has at least one
+    // confirmed item.
+    //
+    // Completed orders are NOT affected by this filter.
+    // --------------------------------------------------
+
+    if (status === "pending") {
+      orderQuery.items.$elemMatch.orderStatus = ORDER_STATUS.CONFIRMED;
+    }
+
+    const orders = await Order.find(orderQuery)
       .populate("customer", "name email mobile")
       .populate("items.seller", "shopName address")
       .populate("items.product", "productName slug")
@@ -541,12 +516,6 @@ export const getMyDeliveryOrders = async (req, res) => {
 
       // ------------------------------------------------
       // Can delivery start?
-      //
-      // Parent order MUST still be ordered.
-      //
-      // ALL items must be resolved.
-      //
-      // At least one item must be confirmed.
       // ------------------------------------------------
 
       const canStartDelivery =
@@ -784,14 +753,6 @@ export const updateDeliveryOrderStatus = async (req, res) => {
 
       await order.save();
 
-      // ------------------------------------------------
-      // Notification
-      // ------------------------------------------------
-
-      notifyCustomerOutForDelivery(order).catch((error) => {
-        console.error("Out For Delivery Telegram Error:", error);
-      });
-
       return res.status(200).json({
         success: true,
         message: "Order is now out for delivery.",
@@ -846,12 +807,18 @@ export const updateDeliveryOrderStatus = async (req, res) => {
       await order.save();
 
       // ------------------------------------------------
-      // Notification
+      // Create delivery earning
       // ------------------------------------------------
 
-      notifyCustomerOrderDelivered(order).catch((error) => {
-        console.error("Order Delivered Telegram Error:", error);
+      await createDeliveryEarning({
+        deliveryPartnerId: deliveryPartner._id,
+        orderId: order._id,
+        completedAt: new Date(),
       });
+
+      // ------------------------------------------------
+      // Notification
+      // ------------------------------------------------
 
       return res.status(200).json({
         success: true,

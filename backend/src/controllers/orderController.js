@@ -15,9 +15,11 @@ import { generateOrderNumber } from "../utils/generateOrderNumber.js";
 import {
   notifySellersNewOrder,
   notifyDeliveryPartnersNewOrder,
-} from "../services/telegramNotificationService.js";
-
-import { notifyCustomerOrderCancelled } from "../services/telegramNotificationService.js";
+  notifyAdminNewOrder,
+  notifySellersOrderCancelled,
+  notifyDeliveryPartnersOrderCancelled,
+  notifyAdminOrderCancelled,
+} from "../services/telegram/telegramNotificationService.js";
 
 /* ==========================================================
    Place Order
@@ -261,13 +263,17 @@ export const placeOrder = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    // Telegram notifications must never affect order placement.
+    // Telegram notifications must NEVER affect order placement.
     notifySellersNewOrder(order).catch((error) => {
       console.error("Seller Telegram Notification Error:", error);
     });
 
     notifyDeliveryPartnersNewOrder(order).catch((error) => {
       console.error("Delivery Telegram Notification Error:", error);
+    });
+
+    notifyAdminNewOrder(order).catch((error) => {
+      console.error("Admin Telegram Notification Error:", error);
     });
 
     return res.status(201).json({
@@ -398,8 +404,19 @@ export const cancelOrder = async (req, res) => {
 
     await order.save();
 
-    notifyCustomerOrderCancelled(order).catch((error) => {
-      console.error("Order Cancellation Telegram Error:", error);
+    // Telegram cancellation notifications must NEVER
+    // affect the cancellation operation.
+
+    notifySellersOrderCancelled(order).catch((error) => {
+      console.error("Seller Cancellation Telegram Error:", error);
+    });
+
+    notifyDeliveryPartnersOrderCancelled(order).catch((error) => {
+      console.error("Delivery Partner Cancellation Telegram Error:", error);
+    });
+
+    notifyAdminOrderCancelled(order).catch((error) => {
+      console.error("Admin Cancellation Telegram Error:", error);
     });
 
     return res.status(200).json({
