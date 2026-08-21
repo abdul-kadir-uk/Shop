@@ -4,7 +4,9 @@ import axios from "axios";
 import { getToken } from "@/lib/auth";
 
 const cartApi = axios.create({
-  baseURL: "http://localhost:5000/api/cart",
+  baseURL: `${
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+  }/cart`,
   headers: {
     "Content-Type": "application/json",
   },
