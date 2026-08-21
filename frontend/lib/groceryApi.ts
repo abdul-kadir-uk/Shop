@@ -4,7 +4,7 @@ import axios from "axios";
 
 // Public Axios Instance
 const groceryApi = axios.create({
-  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/groceries`,
+  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api/groceries`,
 
   headers: {
     "Content-Type": "application/json",
