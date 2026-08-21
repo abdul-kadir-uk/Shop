@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "aliauf-shop.s3.ap-south-1.amazonaws.com",
+        pathname: "/**",
       },
     ],
   },

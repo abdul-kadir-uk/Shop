@@ -14,11 +14,24 @@ export default function SellerSignupPage() {
   const router = useRouter();
 
   const [showPassword, setShowPassword] = useState(false);
+
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [otpLoading, setOtpLoading] = useState(false);
+
   const [serverError, setServerError] = useState("");
+
   const [cities, setCities] = useState<City[]>([]);
+
   const [isLoadingCities, setIsLoadingCities] = useState(true);
+
+  const [otpSent, setOtpSent] = useState(false);
+
+  const [otp, setOtp] = useState("");
+
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -40,6 +53,7 @@ export default function SellerSignupPage() {
   // ---------------------------------
   // Fetch Active Cities
   // ---------------------------------
+
   useEffect(() => {
     const fetchCities = async () => {
       try {
@@ -52,6 +66,7 @@ export default function SellerSignupPage() {
         }
       } catch (error) {
         console.error("Failed to fetch cities", error);
+
         setServerError("Unable to load cities");
       } finally {
         setIsLoadingCities(false);
@@ -60,6 +75,10 @@ export default function SellerSignupPage() {
 
     fetchCities();
   }, []);
+
+  // ---------------------------------
+  // Handle field change
+  // ---------------------------------
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -97,6 +116,29 @@ export default function SellerSignupPage() {
       }
     }
   };
+
+  // ---------------------------------
+  // Start resend cooldown
+  // ---------------------------------
+
+  const startResendCooldown = () => {
+    setResendCooldown(60);
+
+    const interval = setInterval(() => {
+      setResendCooldown((current) => {
+        if (current <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+  };
+
+  // ---------------------------------
+  // Validate form
+  // ---------------------------------
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -138,12 +180,18 @@ export default function SellerSignupPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // ---------------------------------
+  // Send OTP
+  // ---------------------------------
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     setServerError("");
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -166,14 +214,191 @@ export default function SellerSignupPage() {
       );
 
       if (data.success) {
-        router.push("/signup/seller/under-review");
+        setOtpSent(true);
+        startResendCooldown();
       }
     } catch (error: any) {
-      setServerError(error.response?.data?.message || "Something went wrong");
+      setServerError(
+        error.response?.data?.message ||
+          "Unable to send OTP. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // ---------------------------------
+  // Verify OTP
+  // ---------------------------------
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setServerError("");
+
+    if (!/^\d{6}$/.test(otp)) {
+      setServerError("Enter a valid 6-digit OTP");
+      return;
+    }
+
+    try {
+      setOtpLoading(true);
+
+      const { data } = await axios.post(
+        "http://localhost:5000/api/auth/seller/signup/verify-otp",
+        {
+          mobile: formData.mobile,
+          otp,
+        },
+      );
+
+      if (data.success) {
+        router.push("/signup/seller/under-review");
+      }
+    } catch (error: any) {
+      setServerError(
+        error.response?.data?.message || "Invalid OTP. Please try again.",
+      );
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // ---------------------------------
+  // Resend OTP
+  // ---------------------------------
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) {
+      return;
+    }
+
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      setOtpLoading(true);
+      setServerError("");
+
+      const { data } = await axios.post(
+        "http://localhost:5000/api/auth/seller/signup",
+        {
+          name: formData.name,
+          email: formData.email,
+          mobile: formData.mobile,
+          password: formData.password,
+          shopName: formData.shopName,
+          category: formData.category,
+          address: formData.address,
+          cityId: formData.cityId,
+          gstinNumber: formData.gstinNumber.toUpperCase(),
+          securityQuestion: formData.securityQuestion,
+          securityAnswer: formData.securityAnswer.trim().toLowerCase(),
+        },
+      );
+
+      if (data.success) {
+        setOtp("");
+        startResendCooldown();
+      }
+    } catch (error: any) {
+      setServerError(error.response?.data?.message || "Unable to resend OTP.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // ==================================================
+  // OTP SCREEN
+  // ==================================================
+
+  if (otpSent) {
+    return (
+      <div className="min-h-screen bg-gray-100 py-10 px-4">
+        <div className="mx-auto max-w-md rounded-2xl bg-white p-8 shadow-lg">
+          <h1 className="mb-2 text-center text-3xl font-bold">
+            Verify Mobile Number
+          </h1>
+
+          <p className="mb-2 text-center text-gray-500">
+            We sent a 6-digit OTP to
+          </p>
+
+          <p className="mb-6 text-center font-semibold">
+            +91 {formData.mobile}
+          </p>
+
+          <form onSubmit={handleVerifyOtp} className="space-y-5">
+            <div>
+              <label className="mb-1 block font-medium">Enter OTP</label>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+
+                  setOtp(value);
+                  setServerError("");
+                }}
+                placeholder="Enter 6-digit OTP"
+                className="w-full rounded-lg border px-4 py-3 text-center text-xl tracking-[0.5em] focus:border-green-500 focus:outline-none"
+                required
+              />
+            </div>
+
+            {serverError && (
+              <p className="text-sm text-red-500">{serverError}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={otpLoading}
+              className="w-full rounded-lg bg-green-600 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+            >
+              {otpLoading ? "Verifying..." : "Verify & Create Seller Account"}
+            </button>
+          </form>
+
+          <div className="mt-5 text-center">
+            {resendCooldown > 0 ? (
+              <p className="text-sm text-gray-500">
+                Resend OTP in {resendCooldown}s
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={otpLoading}
+                className="font-medium text-green-600 hover:text-green-700"
+              >
+                Resend OTP
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setOtpSent(false);
+              setOtp("");
+              setServerError("");
+            }}
+            className="mt-4 w-full text-sm text-gray-500 hover:text-gray-700"
+          >
+            Change mobile number
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================================================
+  // SELLER SIGNUP FORM
+  // ==================================================
 
   return (
     <div className="min-h-screen bg-gray-100 py-10 px-4">
@@ -188,6 +413,7 @@ export default function SellerSignupPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Name */}
+
           <div>
             <label className="mb-1 block font-medium">Full Name *</label>
 
@@ -206,6 +432,7 @@ export default function SellerSignupPage() {
           </div>
 
           {/* Email + Mobile */}
+
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block font-medium">Email *</label>
@@ -231,7 +458,22 @@ export default function SellerSignupPage() {
                 type="tel"
                 name="mobile"
                 value={formData.mobile}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+
+                  if (value.length <= 10) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      mobile: value,
+                    }));
+                  }
+
+                  setErrors((prev) => ({
+                    ...prev,
+                    mobile: "",
+                  }));
+                }}
+                maxLength={10}
                 placeholder="Enter mobile number"
                 className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
               />
@@ -243,6 +485,7 @@ export default function SellerSignupPage() {
           </div>
 
           {/* Shop Name */}
+
           <div>
             <label className="mb-1 block font-medium">Shop Name *</label>
 
@@ -261,6 +504,7 @@ export default function SellerSignupPage() {
           </div>
 
           {/* Category */}
+
           <div>
             <label className="mb-1 block font-medium">Category *</label>
 
@@ -271,7 +515,9 @@ export default function SellerSignupPage() {
               className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
             >
               <option value="">Select Category</option>
+
               <option value="groceries">Groceries</option>
+
               <option value="mobile-repair">Mobile Repair</option>
             </select>
 
@@ -281,8 +527,8 @@ export default function SellerSignupPage() {
           </div>
 
           {/* GSTIN + City */}
+
           <div className="grid gap-4 md:grid-cols-2">
-            {/* GSTIN */}
             <div>
               <label className="mb-1 block font-medium">GSTIN Number *</label>
 
@@ -291,14 +537,10 @@ export default function SellerSignupPage() {
                 name="gstinNumber"
                 value={formData.gstinNumber}
                 onChange={(e) =>
-                  handleChange({
-                    ...e,
-                    target: {
-                      ...e.target,
-                      name: "gstinNumber",
-                      value: e.target.value.toUpperCase(),
-                    },
-                  })
+                  setFormData((prev) => ({
+                    ...prev,
+                    gstinNumber: e.target.value.toUpperCase(),
+                  }))
                 }
                 maxLength={15}
                 placeholder="Enter GSTIN number"
@@ -312,7 +554,6 @@ export default function SellerSignupPage() {
               )}
             </div>
 
-            {/* City */}
             <div>
               <label className="mb-1 block font-medium">City *</label>
 
@@ -341,6 +582,7 @@ export default function SellerSignupPage() {
           </div>
 
           {/* Passwords */}
+
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block font-medium">Password *</label>
@@ -402,6 +644,7 @@ export default function SellerSignupPage() {
           </div>
 
           {/* Security Question */}
+
           <div>
             <label className="mb-1 block font-medium">
               Security Question *
@@ -414,11 +657,15 @@ export default function SellerSignupPage() {
               className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
             >
               <option value="">Select a question</option>
+
               <option value="pet">What was the name of your first pet?</option>
+
               <option value="school">
                 What was the name of your first school?
               </option>
+
               <option value="city">In which city were you born?</option>
+
               <option value="mother">What is your mother's maiden name?</option>
             </select>
 
@@ -430,6 +677,7 @@ export default function SellerSignupPage() {
           </div>
 
           {/* Security Answer */}
+
           <div>
             <label className="mb-1 block font-medium">Security Answer *</label>
 
@@ -450,6 +698,7 @@ export default function SellerSignupPage() {
           </div>
 
           {/* Address */}
+
           <div>
             <label className="mb-1 block font-medium">Address *</label>
 
@@ -474,7 +723,7 @@ export default function SellerSignupPage() {
             disabled={isSubmitting}
             className="w-full rounded-lg bg-green-600 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
-            {isSubmitting ? "Creating Account..." : "Create Seller Account"}
+            {isSubmitting ? "Sending OTP..." : "Send OTP"}
           </button>
         </form>
       </div>

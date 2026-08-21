@@ -1,4 +1,4 @@
-// services/blackSmsService.js
+// services/otp-verification/blackSmsService.js
 
 import axios from "axios";
 

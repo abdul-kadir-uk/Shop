@@ -1,5 +1,3 @@
-// components/groceries/checkout/CheckoutSummary.tsx
-
 "use client";
 
 type CheckoutItem = {
@@ -8,11 +6,13 @@ type CheckoutItem = {
   brand: string;
   image: string;
   quantity: number;
+
   variant?: {
     quantity: number;
     unit: string;
     label: string;
   };
+
   price: number;
   discountPrice: number | null;
   sellingPrice: number;
@@ -42,7 +42,10 @@ export default function CheckoutSummary({
         Order Summary
       </h2>
 
-      {/* Items */}
+      {/* ==================================================
+          Items
+      ================================================== */}
+
       <div className="space-y-4">
         {items.map((item, index) => (
           <div
@@ -51,6 +54,7 @@ export default function CheckoutSummary({
           >
             <div className="flex gap-3">
               {/* Image */}
+
               <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                 {item.image ? (
                   <img
@@ -66,6 +70,7 @@ export default function CheckoutSummary({
               </div>
 
               {/* Information */}
+
               <div className="min-w-0 flex-1">
                 <h3 className="line-clamp-2 text-sm font-semibold text-gray-900">
                   {item.productName}
@@ -82,36 +87,44 @@ export default function CheckoutSummary({
                 </div>
               </div>
 
-              {/* Price */}
+              {/* ==================================================
+                  Item Price
+                  
+                  IMPORTANT:
+                  item.subtotal is already the final selling-price
+                  subtotal. Do NOT subtract discount again.
+              ================================================== */}
+
               <div className="shrink-0 text-right">
                 <p className="font-semibold text-gray-900">₹{item.subtotal}</p>
-
-                {item.discount > 0 && (
-                  <p className="text-xs text-green-600">
-                    Save ₹{item.discount}
-                  </p>
-                )}
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Pricing */}
+      {/* ==================================================
+          Pricing
+          
+          IMPORTANT:
+          pricing.subtotal is already based on sellingPrice.
+          Therefore:
+          
+          Total = Subtotal + Delivery Charge
+          
+          We do NOT subtract pricing.discount again.
+      ================================================== */}
+
       <div className="mt-5 space-y-3 border-t pt-4 text-sm">
+        {/* Subtotal */}
+
         <div className="flex justify-between">
           <span className="text-gray-500">Subtotal</span>
 
           <span className="font-medium text-gray-900">₹{pricing.subtotal}</span>
         </div>
 
-        <div className="flex justify-between">
-          <span className="text-gray-500">Discount</span>
-
-          <span className="font-medium text-green-600">
-            -₹{pricing.discount}
-          </span>
-        </div>
+        {/* Delivery Charge */}
 
         <div className="flex justify-between">
           <span className="text-gray-500">Delivery Charge</span>
@@ -120,6 +133,8 @@ export default function CheckoutSummary({
             {pricing.deliveryCharge > 0 ? `₹${pricing.deliveryCharge}` : "Free"}
           </span>
         </div>
+
+        {/* Total */}
 
         <div className="flex justify-between border-t pt-3 text-base">
           <span className="font-semibold text-gray-900">Total</span>

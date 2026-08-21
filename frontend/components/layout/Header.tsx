@@ -11,7 +11,7 @@ export default function Header() {
         </Link>
 
         <nav className="flex gap-6 font-medium">
-          <Link href="/About" className="hover:text-green-600 transition">
+          <Link href="/about" className="hover:text-green-600 transition">
             About
           </Link>
 

@@ -10,10 +10,11 @@ import ProductGallery from "@/components/groceries/product details/ProductGaller
 import ProductInfo from "@/components/groceries/product details/ProductInfo";
 
 type ProductVariant = {
+  quantity: number;
+  unit: string;
   label: string;
   price: number;
   discountPrice: number | null;
-  stock: number;
   isDefault: boolean;
 };
 
@@ -33,9 +34,6 @@ type Product = {
 
   quantity: number;
   unit: string;
-
-  stock: number;
-  trackInventory: boolean;
 
   mainImage: {
     url: string;

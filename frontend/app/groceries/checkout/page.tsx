@@ -204,10 +204,34 @@ function GroceryCheckoutContent() {
 
     const deliveryCharge = selectedCityData?.deliveryCharge ?? 0;
 
+    /*
+     * IMPORTANT:
+     *
+     * data.order.pricing.subtotal is already calculated using
+     * the selling price.
+     *
+     * If a product has a discount:
+     *
+     * original price = ₹100
+     * discount price = ₹80
+     *
+     * subtotal for quantity 1 = ₹80
+     *
+     * Therefore, we must NOT do:
+     *
+     * subtotal - discount
+     *
+     * because that would subtract the discount twice.
+     *
+     * Correct calculation:
+     *
+     * total = already-discounted subtotal + delivery charge
+     */
+
     const subtotal = data.order.pricing.subtotal;
     const discount = data.order.pricing.discount;
 
-    const total = subtotal - discount + deliveryCharge;
+    const total = subtotal + deliveryCharge;
 
     return {
       subtotal,

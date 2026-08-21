@@ -5,11 +5,15 @@ import {
   customerSignup,
   verifyCustomerSignupOtp,
   sellerSignup,
+  verifySellerSignupOtp,
   deliverySignup,
+  verifyDeliverySignupOtp,
   login,
   verifySecurity,
   verifyCurrentPassword,
   resetPassword,
+  sendPasswordResetOtp,
+  verifyPasswordResetOtp,
   logout,
 } from "../controllers/authController.js";
 
@@ -28,8 +32,13 @@ router.post("/customer/signup/verify-otp", verifyCustomerSignupOtp);
 // Seller
 router.post("/seller/signup", sellerSignup);
 
+router.post("/seller/signup/verify-otp", verifySellerSignupOtp);
+
 // Delivery Partner
 router.post("/delivery/signup", uploadAadhaarDocument, deliverySignup);
+
+router.post("/delivery/signup/verify-otp", verifyDeliverySignupOtp);
+
 // Login
 router.post("/login", login);
 
@@ -44,6 +53,12 @@ router.get("/delivery/profile", protect, getDeliveryProfile);
 
 //verify security
 router.post("/verify-security", verifySecurity);
+
+// Password reset through mobile OTP
+
+router.post("/password-reset/send-otp", sendPasswordResetOtp);
+
+router.post("/password-reset/verify-otp", verifyPasswordResetOtp);
 
 // verify current password
 router.post("/verify-current-password", protect, verifyCurrentPassword);

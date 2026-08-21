@@ -204,18 +204,6 @@ export default function ProductCard({ product }: ProductCardProps) {
                 {message}
               </p>
             )}
-
-            {/* Buy Now */}
-            <button
-              type="button"
-              disabled={adding || buying}
-              onClick={handleBuyNow}
-              className="flex h-9 w-full items-center justify-center gap-1 rounded-lg bg-green-600 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <ShoppingBag size={16} />
-
-              <span>{buying ? "Loading..." : "Buy Now"}</span>
-            </button>
           </div>
         </div>
       </div>

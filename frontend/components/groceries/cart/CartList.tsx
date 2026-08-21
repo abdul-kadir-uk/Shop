@@ -13,6 +13,8 @@ import {
 import { isLoggedIn } from "@/lib/auth";
 import CartItem from "./CartItem";
 
+const MINIMUM_ORDER_VALUE = 100;
+
 type CartItemData = {
   productId: string;
   productName: string;
@@ -180,6 +182,13 @@ export default function CartList() {
       return;
     }
 
+    if (cart.subtotal < MINIMUM_ORDER_VALUE) {
+      setError(
+        `Minimum order value is ₹${MINIMUM_ORDER_VALUE}. Please add more items to your cart.`,
+      );
+      return;
+    }
+
     router.push("/groceries/checkout?type=cart");
   };
 
@@ -239,6 +248,13 @@ export default function CartList() {
       </div>
     );
   }
+
+  const minimumOrderRemaining = Math.max(
+    0,
+    MINIMUM_ORDER_VALUE - cart.subtotal,
+  );
+
+  const minimumOrderMet = cart.subtotal >= MINIMUM_ORDER_VALUE;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
@@ -323,11 +339,27 @@ export default function CartList() {
           </div>
         </div>
 
+        {/* Minimum Order Value */}
+
+        {!minimumOrderMet && (
+          <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-3">
+            <p className="text-sm font-semibold text-yellow-800">
+              Minimum order value: ₹{MINIMUM_ORDER_VALUE}
+            </p>
+
+            <p className="mt-1 text-xs text-yellow-700">
+              Add ₹{minimumOrderRemaining} more to proceed to checkout.
+            </p>
+          </div>
+        )}
+
         {/* Checkout */}
+
         <button
           type="button"
           onClick={handleCheckout}
-          className="mt-5 h-11 w-full rounded-lg bg-green-600 text-sm font-semibold text-white transition hover:bg-green-700"
+          disabled={!minimumOrderMet}
+          className="mt-5 h-11 w-full rounded-lg bg-green-600 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Proceed to Checkout
         </button>

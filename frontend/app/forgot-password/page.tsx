@@ -1,7 +1,9 @@
+// app/forget-password/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -131,6 +133,14 @@ export default function ForgotPasswordPage() {
             {loading ? "Verifying..." : "Verify"}
           </button>
         </form>
+        <div className="mt-6 text-center">
+          <Link
+            href="/forget-password-mobile"
+            className="text-sm font-medium text-green-600 hover:text-green-700 hover:underline"
+          >
+            Reset password through mobile OTP
+          </Link>
+        </div>
       </div>
     </div>
   );

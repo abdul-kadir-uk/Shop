@@ -3,7 +3,7 @@ import "./globals.css";
 import Providers from "@/providers";
 
 export const metadata = {
-  title: "Aliauf Store",
+  title: "Aliauf.com",
   description: "Groceries & Mobile Repair",
 };
 

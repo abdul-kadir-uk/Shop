@@ -218,7 +218,11 @@ export default function DeliverySignupPage() {
       );
 
       if (response.data.success) {
-        router.push("/signup/delivery/under-review");
+        router.push(
+          `/signup/delivery/verify-otp?mobile=${encodeURIComponent(
+            formData.mobileNumber,
+          )}`,
+        );
       }
     } catch (error: any) {
       setError(error.response?.data?.message || "Something went wrong");

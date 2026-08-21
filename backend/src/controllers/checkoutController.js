@@ -8,6 +8,12 @@ import {
 } from "../services/order/orderService.js";
 
 /* ==========================================================
+   Minimum Order Value
+========================================================== */
+
+const MINIMUM_ORDER_VALUE = 100;
+
+/* ==========================================================
    Checkout Summary
    POST /api/checkout/summary
 ========================================================== */
@@ -50,6 +56,19 @@ export const getCheckoutSummary = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid checkout type.",
+      });
+    }
+
+    // --------------------------------------------------
+    // Minimum Order Value
+    // --------------------------------------------------
+
+    if (summary.pricing.subtotal < MINIMUM_ORDER_VALUE) {
+      return res.status(400).json({
+        success: false,
+        message: `Minimum order value is ₹${MINIMUM_ORDER_VALUE}. Please add more items to your order.`,
+        minimumOrderValue: MINIMUM_ORDER_VALUE,
+        currentOrderValue: summary.pricing.subtotal,
       });
     }
 

@@ -1,5 +1,11 @@
 // controllers/groceryController.js
 import GroceryProduct from "../models/GroceryProduct.js";
+import {
+  getVariant,
+  validateQuantity,
+} from "../services/order/validationService.js";
+
+import { calculateItemPricing } from "../services/order/pricingService.js";
 
 // ======================================================
 // Get All Public Grocery Products
@@ -179,6 +185,149 @@ export const getSingleGrocery = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch product.",
+    });
+  }
+};
+
+// ======================================================
+// Calculate Product Price For Selected Quantity
+// POST /api/groceries/:slug/price
+// ======================================================
+
+// ======================================================
+// Get Product By Slug
+// ======================================================
+
+const getProductBySlug = async (slug) => {
+  const product = await GroceryProduct.findOne({
+    slug,
+    isDeleted: false,
+    isAvailable: true,
+  }).populate("sellerId");
+
+  return product;
+};
+
+// ======================================================
+// Calculate Product Price For Selected Quantity
+// POST /api/groceries/:slug/price
+// ======================================================
+
+export const calculateGroceryProductPrice = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const { quantity = 1, variantIndex = -1 } = req.body;
+
+    // ---------------------------------------------
+    // Validate quantity
+    // ---------------------------------------------
+
+    const requestedQuantity = Number(quantity);
+
+    if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity must be at least 1.",
+      });
+    }
+
+    // ---------------------------------------------
+    // Find Product
+    // ---------------------------------------------
+
+    const product = await GroceryProduct.findOne({
+      slug,
+      isDeleted: false,
+      isAvailable: true,
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found.",
+      });
+    }
+
+    // ---------------------------------------------
+    // Get Selected Variant
+    // ---------------------------------------------
+
+    let variant;
+
+    if (Number(variantIndex) === -1) {
+      // Main product
+      variant = {
+        quantity: product.quantity,
+        unit: product.unit,
+        label: `${product.quantity} ${product.unit}`,
+        price: product.price,
+        discountPrice: product.discountPrice,
+      };
+    } else {
+      if (
+        !Array.isArray(product.variants) ||
+        Number(variantIndex) < 0 ||
+        Number(variantIndex) >= product.variants.length
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected variant not found.",
+        });
+      }
+
+      variant = product.variants[Number(variantIndex)];
+    }
+
+    // ---------------------------------------------
+    // Backend Price Calculation
+    // ---------------------------------------------
+
+    const sellingPrice =
+      variant.discountPrice !== null &&
+      variant.discountPrice !== undefined &&
+      variant.discountPrice >= 0 &&
+      variant.discountPrice < variant.price
+        ? variant.discountPrice
+        : variant.price;
+
+    const subtotal = sellingPrice * requestedQuantity;
+
+    const discount = (variant.price - sellingPrice) * requestedQuantity;
+
+    // ---------------------------------------------
+    // Response
+    // ---------------------------------------------
+
+    return res.status(200).json({
+      success: true,
+
+      data: {
+        quantity: requestedQuantity,
+
+        baseQuantity: variant.quantity,
+
+        unit: variant.unit,
+
+        label: variant.label || `${variant.quantity} ${variant.unit}`,
+
+        price: variant.price,
+
+        discountPrice: variant.discountPrice,
+
+        sellingPrice,
+
+        subtotal,
+
+        discount,
+      },
+    });
+  } catch (error) {
+    console.error("Calculate Grocery Product Price Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to calculate product price.",
     });
   }
 };

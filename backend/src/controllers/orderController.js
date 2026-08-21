@@ -25,6 +25,16 @@ import {
    Place Order
 ========================================================== */
 
+/* ==========================================================
+   Minimum Order Value
+========================================================== */
+
+const MINIMUM_ORDER_VALUE = 100;
+
+/* ==========================================================
+   Place Order
+========================================================== */
+
 export const placeOrder = async (req, res) => {
   const session = await mongoose.startSession();
 
@@ -163,6 +173,22 @@ export const placeOrder = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid checkout type.",
+      });
+    }
+
+    // --------------------------------------------------
+    // Minimum Order Value
+    // --------------------------------------------------
+
+    if (summary.pricing.subtotal < MINIMUM_ORDER_VALUE) {
+      await session.abortTransaction();
+      session.endSession();
+
+      return res.status(400).json({
+        success: false,
+        message: `Minimum order value is ₹${MINIMUM_ORDER_VALUE}. Please add more items to your order.`,
+        minimumOrderValue: MINIMUM_ORDER_VALUE,
+        currentOrderValue: summary.pricing.subtotal,
       });
     }
 

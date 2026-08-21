@@ -37,20 +37,34 @@ type Product = {
   totalSold: number;
 };
 
+const PRODUCTS_PER_PAGE = 12;
+
 export default function ProductGrid({ filters, search }: ProductGridProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchProducts = async () => {
+  const [page, setPage] = useState(1);
+
+  // Determines whether there are more products available
+  const [hasMore, setHasMore] = useState(true);
+
+  const fetchProducts = async (pageNumber: number, loadMore = false) => {
     try {
-      setLoading(true);
+      if (loadMore) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
 
       const params: any = {
-        page: 1,
-        limit: 12,
+        page: pageNumber,
+        limit: PRODUCTS_PER_PAGE,
       };
 
-      if (search) params.search = search;
+      if (search) {
+        params.search = search;
+      }
 
       if (filters.category) {
         params.category = filters.category;
@@ -75,18 +89,58 @@ export default function ProductGrid({ filters, search }: ProductGridProps) {
       const data = await getAllGroceries(params);
 
       if (data.success) {
-        setProducts(data.products);
+        const newProducts: Product[] = data.products || [];
+
+        if (loadMore) {
+          setProducts((previousProducts) => [
+            ...previousProducts,
+            ...newProducts,
+          ]);
+        } else {
+          setProducts(newProducts);
+        }
+
+        /*
+         * If the API returns fewer products than the requested limit,
+         * we know there are no more products to load.
+         */
+        setHasMore(newProducts.length === PRODUCTS_PER_PAGE);
       }
     } catch (error) {
       console.error("Failed to fetch products", error);
     } finally {
-      setLoading(false);
+      if (loadMore) {
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
+  /*
+   * Fetch the first page whenever filters or search changes.
+   */
   useEffect(() => {
-    fetchProducts();
+    setPage(1);
+    setHasMore(true);
+
+    fetchProducts(1, false);
   }, [filters, search]);
+
+  /*
+   * Load the next page.
+   */
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) {
+      return;
+    }
+
+    const nextPage = page + 1;
+
+    await fetchProducts(nextPage, true);
+
+    setPage(nextPage);
+  };
 
   return (
     <section className="w-full min-w-0">
@@ -104,26 +158,54 @@ export default function ProductGrid({ filters, search }: ProductGridProps) {
           No products found.
         </div>
       ) : (
-        /* Product Grid */
-        <div
-          className="
-            grid
-            w-full
-            min-w-0
-            grid-cols-1
-            gap-3
-            min-[400px]:grid-cols-2
-            sm:gap-4
-            sm:grid-cols-3
-            md:grid-cols-4
-            lg:grid-cols-5
-            xl:grid-cols-6
-          "
-        >
-          {products.map((product) => (
-            <ProductCard key={product._id} product={product} />
-          ))}
-        </div>
+        <>
+          {/* Product Grid */}
+          <div
+            className="
+              grid
+              w-full
+              min-w-0
+              grid-cols-1
+              gap-3
+              min-[400px]:grid-cols-2
+              sm:gap-4
+              sm:grid-cols-3
+              md:grid-cols-4
+              lg:grid-cols-5
+              xl:grid-cols-6
+            "
+          >
+            {products.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))}
+          </div>
+
+          {/* Load More */}
+          {hasMore && (
+            <div className="mt-8 flex justify-center pb-6">
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="
+                  rounded-lg
+                  bg-black
+                  px-6
+                  py-3
+                  text-sm
+                  font-semibold
+                  text-white
+                  transition
+                  hover:bg-gray-800
+                  disabled:cursor-not-allowed
+                  disabled:opacity-60
+                "
+              >
+                {loadingMore ? "Loading products..." : "Load More Products"}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
