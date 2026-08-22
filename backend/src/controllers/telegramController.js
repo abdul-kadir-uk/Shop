@@ -75,6 +75,10 @@ export const telegramWebhook = async (req, res) => {
     }
 
     const message = req.body?.message;
+    console.log(
+      "TELEGRAM WEBHOOK RECEIVED:",
+      JSON.stringify(req.body, null, 2),
+    );
 
     if (!message) {
       return res.sendStatus(200);
@@ -82,6 +86,8 @@ export const telegramWebhook = async (req, res) => {
 
     const chatId = message.chat?.id;
     const text = message.text || "";
+    console.log("TELEGRAM CHAT ID:", chatId);
+    console.log("TELEGRAM TEXT:", text);
 
     if (!chatId || !text.startsWith("/start")) {
       return res.sendStatus(200);
@@ -105,7 +111,7 @@ export const telegramWebhook = async (req, res) => {
     if (decoded.purpose !== "telegramConnect") {
       return res.sendStatus(200);
     }
-
+    console.log("TELEGRAM DECODED USER ID:", decoded.id);
     const user = await User.findById(decoded.id);
 
     if (!user) {
