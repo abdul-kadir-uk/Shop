@@ -1,4 +1,3 @@
-// controllers/telegramController.js
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
@@ -115,115 +114,195 @@ export const telegramWebhook = async (req, res) => {
     const telegramChatId = String(chatId);
 
     // ======================================================
-    // Make sure the array exists.
-    // ======================================================
-
-    if (!Array.isArray(user.telegramConnections)) {
-      user.telegramConnections = [];
-    }
-
-    // ======================================================
-    // Backward compatibility
+    // DELIVERY + ADMIN
     //
-    // If this user was connected before we introduced
-    // telegramConnections, move the old connection into
-    // the new array.
+    // Keep the existing single Telegram chat ID system.
+    // Do NOT use telegramConnections for these roles.
     // ======================================================
 
-    if (
-      user.telegramChatId &&
-      !user.telegramConnections.some(
-        (connection) => connection.chatId === String(user.telegramChatId),
-      )
-    ) {
-      user.telegramConnections.push({
-        chatId: String(user.telegramChatId),
-        connectedAt: user.telegramConnectedAt || new Date(),
+    if (user.role === "delivery" || user.role === "admin") {
+      // ----------------------------------------------------
+      // Check whether this Telegram chat belongs to
+      // another Aliauf account.
+      // ----------------------------------------------------
+
+      const existingConnection = await User.findOne({
+        $or: [
+          {
+            telegramChatId: telegramChatId,
+          },
+          {
+            "telegramConnections.chatId": telegramChatId,
+          },
+        ],
+        _id: { $ne: user._id },
       });
-    }
 
-    // ======================================================
-    // Check whether this Telegram chat belongs to another
-    // Aliauf account.
-    //
-    // We check BOTH the new array and the old legacy field
-    // because this is a production migration.
-    // ======================================================
+      if (existingConnection) {
+        console.warn(
+          `Telegram chat ${telegramChatId} attempted to connect to another account.`,
+        );
 
-    const existingConnection = await User.findOne({
-      $or: [
-        {
-          telegramChatId: telegramChatId,
-        },
-        {
-          "telegramConnections.chatId": telegramChatId,
-        },
-      ],
-      _id: { $ne: user._id },
-    });
+        return res.sendStatus(200);
+      }
 
-    if (existingConnection) {
-      console.warn(
-        `Telegram chat ${telegramChatId} attempted to connect to another account.`,
+      // ----------------------------------------------------
+      // If this exact Telegram account is already connected
+      // to this user, do not send success message again.
+      // ----------------------------------------------------
+
+      if (user.telegramChatId === telegramChatId) {
+        return res.sendStatus(200);
+      }
+
+      // ----------------------------------------------------
+      // Keep existing single-chat behavior.
+      //
+      // If the user connects a new Telegram account, the
+      // old telegramChatId is replaced.
+      // ----------------------------------------------------
+
+      user.telegramChatId = telegramChatId;
+      user.telegramConnectedAt = new Date();
+
+      await user.save();
+
+      // ----------------------------------------------------
+      // Send success message ONLY for a new connection.
+      // ----------------------------------------------------
+
+      const { sendTelegramMessage } = await import("../utils/telegram.js");
+
+      await sendTelegramMessage(
+        telegramChatId,
+        `
+<b>✅ You are successfully connected to the Telegram.</b>
+`.trim(),
+      );
+
+      console.log(
+        `Telegram connected successfully for ${user.role} ${user._id}, chat ${telegramChatId}`,
       );
 
       return res.sendStatus(200);
     }
 
     // ======================================================
-    // Check whether THIS Telegram chat is already connected
-    // to THIS user.
-    // ======================================================
-
-    const alreadyConnected = user.telegramConnections.some(
-      (connection) => connection.chatId === telegramChatId,
-    );
-
-    // ======================================================
-    // If already connected:
+    // SELLER
     //
-    // DO NOT send the "successfully connected" message again.
+    // Sellers can have multiple Telegram connections.
     // ======================================================
 
-    if (alreadyConnected) {
+    if (user.role === "seller") {
+      // ----------------------------------------------------
+      // Make sure the array exists.
+      // ----------------------------------------------------
+
+      if (!Array.isArray(user.telegramConnections)) {
+        user.telegramConnections = [];
+      }
+
+      // ----------------------------------------------------
+      // Backward compatibility.
+      //
+      // If seller was connected using the old
+      // telegramChatId field, move that connection into
+      // telegramConnections.
+      // ----------------------------------------------------
+
+      if (
+        user.telegramChatId &&
+        !user.telegramConnections.some(
+          (connection) => connection.chatId === String(user.telegramChatId),
+        )
+      ) {
+        user.telegramConnections.push({
+          chatId: String(user.telegramChatId),
+          connectedAt: user.telegramConnectedAt || new Date(),
+        });
+      }
+
+      // ----------------------------------------------------
+      // Check whether this Telegram chat belongs to
+      // another Aliauf account.
+      // ----------------------------------------------------
+
+      const existingConnection = await User.findOne({
+        $or: [
+          {
+            telegramChatId: telegramChatId,
+          },
+          {
+            "telegramConnections.chatId": telegramChatId,
+          },
+        ],
+        _id: { $ne: user._id },
+      });
+
+      if (existingConnection) {
+        console.warn(
+          `Telegram chat ${telegramChatId} attempted to connect to another account.`,
+        );
+
+        return res.sendStatus(200);
+      }
+
+      // ----------------------------------------------------
+      // Check whether THIS Telegram chat is already
+      // connected to THIS seller.
+      // ----------------------------------------------------
+
+      const alreadyConnected = user.telegramConnections.some(
+        (connection) => connection.chatId === telegramChatId,
+      );
+
+      // ----------------------------------------------------
+      // Already connected:
+      // DO NOT send success message again.
+      // ----------------------------------------------------
+
+      if (alreadyConnected) {
+        await user.save();
+
+        return res.sendStatus(200);
+      }
+
+      // ----------------------------------------------------
+      // New seller Telegram connection.
+      // ----------------------------------------------------
+
+      user.telegramConnections.push({
+        chatId: telegramChatId,
+        connectedAt: new Date(),
+      });
+
       await user.save();
+
+      // ----------------------------------------------------
+      // Send success message ONLY for a new connection.
+      // ----------------------------------------------------
+
+      const { sendTelegramMessage } = await import("../utils/telegram.js");
+
+      await sendTelegramMessage(
+        telegramChatId,
+        `
+<b>✅ You are successfully connected to the Telegram.</b>
+`.trim(),
+      );
+
+      console.log(
+        `Telegram connected successfully for seller ${user._id}, chat ${telegramChatId}`,
+      );
 
       return res.sendStatus(200);
     }
 
     // ======================================================
-    // New Telegram connection
+    // Other roles
+    //
+    // Currently nothing to do.
     // ======================================================
-
-    user.telegramConnections.push({
-      chatId: telegramChatId,
-      connectedAt: new Date(),
-    });
-
-    await user.save();
-
-    // ======================================================
-    // Send success message ONLY for a new connection.
-    // ======================================================
-
-    const { sendTelegramMessage } = await import("../utils/telegram.js");
-
-    await sendTelegramMessage(
-      telegramChatId,
-      `
-<b>✅ Telegram Connected Successfully</b>
-
-Hello <b>${user.name}</b>!
-
-Your Telegram account has been successfully connected to your Aliauf account.
-
-You will now receive important notifications here.
-`.trim(),
-    );
-
-    console.log(
-      `Telegram connected successfully for user ${user._id}, chat ${telegramChatId}`,
-    );
 
     return res.sendStatus(200);
   } catch (error) {
@@ -250,11 +329,27 @@ export const disconnectTelegram = async (req, res) => {
       });
     }
 
-    user.telegramConnections = [];
+    // ======================================================
+    // Seller
+    // Multiple Telegram connections
+    // ======================================================
 
-    // Keep legacy fields cleared as well.
-    user.telegramChatId = null;
-    user.telegramConnectedAt = null;
+    if (user.role === "seller") {
+      user.telegramConnections = [];
+
+      // Keep legacy fields cleared as well.
+      user.telegramChatId = null;
+      user.telegramConnectedAt = null;
+    }
+
+    // ======================================================
+    // Delivery + Admin
+    // Existing single Telegram connection
+    // ======================================================
+    else {
+      user.telegramChatId = null;
+      user.telegramConnectedAt = null;
+    }
 
     await user.save();
 
@@ -280,7 +375,7 @@ export const disconnectTelegram = async (req, res) => {
 export const getTelegramStatus = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select(
-      "telegramChatId telegramConnectedAt telegramConnections",
+      "role telegramChatId telegramConnectedAt telegramConnections",
     );
 
     if (!user) {
@@ -291,31 +386,60 @@ export const getTelegramStatus = async (req, res) => {
     }
 
     // ======================================================
-    // Build connections list including old production
-    // connection if it has not yet been migrated.
+    // DELIVERY + ADMIN
+    //
+    // Use ONLY the old single telegramChatId.
     // ======================================================
 
-    const connections = Array.isArray(user.telegramConnections)
-      ? [...user.telegramConnections]
-      : [];
-
-    if (
-      user.telegramChatId &&
-      !connections.some(
-        (connection) => connection.chatId === String(user.telegramChatId),
-      )
-    ) {
-      connections.push({
-        chatId: String(user.telegramChatId),
+    if (user.role === "delivery" || user.role === "admin") {
+      return res.status(200).json({
+        success: true,
+        connected: Boolean(user.telegramChatId),
         connectedAt: user.telegramConnectedAt,
       });
     }
 
+    // ======================================================
+    // SELLER
+    //
+    // Use multiple telegramConnections.
+    //
+    // Also include the old production connection if it
+    // hasn't been migrated yet.
+    // ======================================================
+
+    if (user.role === "seller") {
+      const connections = Array.isArray(user.telegramConnections)
+        ? [...user.telegramConnections]
+        : [];
+
+      if (
+        user.telegramChatId &&
+        !connections.some(
+          (connection) => connection.chatId === String(user.telegramChatId),
+        )
+      ) {
+        connections.push({
+          chatId: String(user.telegramChatId),
+          connectedAt: user.telegramConnectedAt,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        connected: connections.length > 0,
+        connectionCount: connections.length,
+        connections,
+      });
+    }
+
+    // ======================================================
+    // Other roles
+    // ======================================================
+
     return res.status(200).json({
       success: true,
-      connected: connections.length > 0,
-      connectionCount: connections.length,
-      connections,
+      connected: false,
     });
   } catch (error) {
     console.error("Get Telegram Status Error:", error);

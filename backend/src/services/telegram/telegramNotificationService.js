@@ -246,7 +246,7 @@ aliauf.com
 
 /* ==========================================================
    CANCELLED ORDER
-   Notify relevant sellers
+   Notify ALL connected Telegram accounts of relevant sellers
 ========================================================== */
 
 export const notifySellersOrderCancelled = async (order) => {
@@ -263,13 +263,46 @@ export const notifySellersOrderCancelled = async (order) => {
 
     const sellers = await Seller.find({
       _id: { $in: sellerIds },
-    }).populate("userId", "name telegramChatId");
+    }).populate("userId", "name telegramChatId telegramConnections");
 
     for (const seller of sellers) {
       try {
-        if (!seller.userId?.telegramChatId) {
+        if (!seller.userId) {
           continue;
         }
+
+        // ======================================================
+        // Collect ALL Telegram connections
+        // ======================================================
+
+        const chatIds = [];
+
+        // New multi-account Telegram connections
+        if (Array.isArray(seller.userId.telegramConnections)) {
+          for (const connection of seller.userId.telegramConnections) {
+            if (connection?.chatId) {
+              chatIds.push(String(connection.chatId));
+            }
+          }
+        }
+
+        // Legacy production Telegram connection
+        // Keep this for backward compatibility.
+        if (
+          seller.userId.telegramChatId &&
+          !chatIds.includes(String(seller.userId.telegramChatId))
+        ) {
+          chatIds.push(String(seller.userId.telegramChatId));
+        }
+
+        // No Telegram accounts connected
+        if (chatIds.length === 0) {
+          continue;
+        }
+
+        // ======================================================
+        // Get only this seller's items
+        // ======================================================
 
         const sellerItems = order.items.filter(
           (item) => item.seller?.toString() === seller._id.toString(),
@@ -291,12 +324,26 @@ Order: <b>${order.orderNumber}</b>
 <b>Items from your shop:</b>
 ${itemLines}
 
-The customer has cancelled this order
+The customer has cancelled this order.
+
 aliauf.com/seller/dashboard
-.
 `.trim();
 
-        await sendTelegramMessage(seller.userId.telegramChatId, message);
+        // ======================================================
+        // Send cancellation notification to EVERY connected
+        // Telegram account of this seller.
+        // ======================================================
+
+        for (const chatId of chatIds) {
+          try {
+            await sendTelegramMessage(chatId, message);
+          } catch (error) {
+            console.error(
+              `Seller Cancellation Telegram Error - Chat ${chatId} (Seller ${seller._id}):`,
+              error,
+            );
+          }
+        }
       } catch (error) {
         console.error(
           `Seller Cancellation Telegram Error (${seller._id}):`,
