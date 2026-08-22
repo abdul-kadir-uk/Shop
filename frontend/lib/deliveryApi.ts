@@ -271,7 +271,7 @@ export interface DeliveryOrdersResponse {
 
 export const getDeliveryDashboard =
   async (): Promise<DeliveryDashboardResponse> => {
-    const response = await api.get("/api/delivery/dashboard");
+    const response = await api.get("/delivery/dashboard");
 
     return response.data;
   };
@@ -284,7 +284,7 @@ export const getDeliveryDashboard =
 
 export const getDeliveryProfile =
   async (): Promise<DeliveryProfileResponse> => {
-    const response = await api.get("/api/delivery/profile");
+    const response = await api.get("/delivery/profile");
 
     return response.data;
   };
@@ -322,7 +322,7 @@ export interface DailyDeliveryEarningsResponse {
 export const getMyDailyDeliveryEarnings = async (
   page: number = 1,
 ): Promise<DailyDeliveryEarningsResponse> => {
-  const response = await api.get("/api/delivery/earnings/daily", {
+  const response = await api.get("/delivery/earnings/daily", {
     params: {
       page,
     },
@@ -372,7 +372,7 @@ export const getMyDailyDeliveryEarnings = async (
 export const getAvailableDeliveryOrders = async (
   page: number = 1,
 ): Promise<DeliveryOrdersResponse> => {
-  const response = await api.get("/api/delivery/orders", {
+  const response = await api.get("/delivery/orders", {
     params: {
       page,
     },
@@ -407,7 +407,7 @@ export const getAvailableDeliveryOrders = async (
 // ======================================================
 
 export const acceptDeliveryOrder = async (orderId: string) => {
-  const response = await api.patch(`/api/delivery/orders/${orderId}/accept`);
+  const response = await api.patch(`/delivery/orders/${orderId}/accept`);
 
   return response.data;
 };
@@ -455,7 +455,7 @@ export const getMyDeliveryOrders = async (
   status: "pending" | "completed" = "pending",
   page: number = 1,
 ): Promise<DeliveryOrdersResponse> => {
-  const response = await api.get("/api/delivery/my-orders", {
+  const response = await api.get("/delivery/my-orders", {
     params: {
       status,
       page,
@@ -502,7 +502,7 @@ export const updateDeliveryOrderStatus = async (
   orderId: string,
   status: "outForDelivery" | "delivered" | "cancelled",
 ) => {
-  const response = await api.patch(`/api/delivery/orders/${orderId}/status`, {
+  const response = await api.patch(`/delivery/orders/${orderId}/status`, {
     status,
   });
 

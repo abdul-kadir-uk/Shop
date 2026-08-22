@@ -27,7 +27,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       }
 
       try {
-        await adminApi.get("/api/admin/profile");
+        await adminApi.get("/admin/profile");
 
         setCheckingAuth(false);
       } catch (error) {
@@ -87,7 +87,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
     try {
       if (token) {
-        await adminApi.post("/api/admin/logout");
+        await adminApi.post("/admin/logout");
       }
     } catch (error) {
       console.error(error);
