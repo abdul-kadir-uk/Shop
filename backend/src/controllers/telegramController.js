@@ -112,45 +112,124 @@ export const telegramWebhook = async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ------------------------------------------------------
-    // Prevent one Telegram account from being connected
-    // to another website account.
-    // ------------------------------------------------------
+    const telegramChatId = String(chatId);
+
+    // ======================================================
+    // Make sure the array exists.
+    // ======================================================
+
+    if (!Array.isArray(user.telegramConnections)) {
+      user.telegramConnections = [];
+    }
+
+    // ======================================================
+    // Backward compatibility
+    //
+    // If this user was connected before we introduced
+    // telegramConnections, move the old connection into
+    // the new array.
+    // ======================================================
+
+    if (
+      user.telegramChatId &&
+      !user.telegramConnections.some(
+        (connection) => connection.chatId === String(user.telegramChatId),
+      )
+    ) {
+      user.telegramConnections.push({
+        chatId: String(user.telegramChatId),
+        connectedAt: user.telegramConnectedAt || new Date(),
+      });
+    }
+
+    // ======================================================
+    // Check whether this Telegram chat belongs to another
+    // Aliauf account.
+    //
+    // We check BOTH the new array and the old legacy field
+    // because this is a production migration.
+    // ======================================================
 
     const existingConnection = await User.findOne({
-      telegramChatId: String(chatId),
+      $or: [
+        {
+          telegramChatId: telegramChatId,
+        },
+        {
+          "telegramConnections.chatId": telegramChatId,
+        },
+      ],
       _id: { $ne: user._id },
     });
 
     if (existingConnection) {
+      console.warn(
+        `Telegram chat ${telegramChatId} attempted to connect to another account.`,
+      );
+
       return res.sendStatus(200);
     }
 
-    user.telegramChatId = String(chatId);
-    user.telegramConnectedAt = new Date();
+    // ======================================================
+    // Check whether THIS Telegram chat is already connected
+    // to THIS user.
+    // ======================================================
+
+    const alreadyConnected = user.telegramConnections.some(
+      (connection) => connection.chatId === telegramChatId,
+    );
+
+    // ======================================================
+    // If already connected:
+    //
+    // DO NOT send the "successfully connected" message again.
+    // ======================================================
+
+    if (alreadyConnected) {
+      await user.save();
+
+      return res.sendStatus(200);
+    }
+
+    // ======================================================
+    // New Telegram connection
+    // ======================================================
+
+    user.telegramConnections.push({
+      chatId: telegramChatId,
+      connectedAt: new Date(),
+    });
 
     await user.save();
+
+    // ======================================================
+    // Send success message ONLY for a new connection.
+    // ======================================================
 
     const { sendTelegramMessage } = await import("../utils/telegram.js");
 
     await sendTelegramMessage(
-      chatId,
+      telegramChatId,
       `
-<b>✅ Telegram Connected</b>
+<b>✅ Telegram Connected Successfully</b>
 
 Hello <b>${user.name}</b>!
 
-Your Telegram notifications are now connected to your account.
+Your Telegram account has been successfully connected to your Aliauf account.
 
-You will receive important notifications here.
+You will now receive important notifications here.
 `.trim(),
+    );
+
+    console.log(
+      `Telegram connected successfully for user ${user._id}, chat ${telegramChatId}`,
     );
 
     return res.sendStatus(200);
   } catch (error) {
     console.error("Telegram Webhook Error:", error);
 
-    // Telegram expects successful response.
+    // Telegram expects a successful response.
     return res.sendStatus(200);
   }
 };
@@ -171,6 +250,9 @@ export const disconnectTelegram = async (req, res) => {
       });
     }
 
+    user.telegramConnections = [];
+
+    // Keep legacy fields cleared as well.
     user.telegramChatId = null;
     user.telegramConnectedAt = null;
 
@@ -181,6 +263,8 @@ export const disconnectTelegram = async (req, res) => {
       message: "Telegram notifications disconnected.",
     });
   } catch (error) {
+    console.error("Disconnect Telegram Error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to disconnect Telegram.",
@@ -196,7 +280,7 @@ export const disconnectTelegram = async (req, res) => {
 export const getTelegramStatus = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select(
-      "telegramChatId telegramConnectedAt",
+      "telegramChatId telegramConnectedAt telegramConnections",
     );
 
     if (!user) {
@@ -206,12 +290,36 @@ export const getTelegramStatus = async (req, res) => {
       });
     }
 
+    // ======================================================
+    // Build connections list including old production
+    // connection if it has not yet been migrated.
+    // ======================================================
+
+    const connections = Array.isArray(user.telegramConnections)
+      ? [...user.telegramConnections]
+      : [];
+
+    if (
+      user.telegramChatId &&
+      !connections.some(
+        (connection) => connection.chatId === String(user.telegramChatId),
+      )
+    ) {
+      connections.push({
+        chatId: String(user.telegramChatId),
+        connectedAt: user.telegramConnectedAt,
+      });
+    }
+
     return res.status(200).json({
       success: true,
-      connected: Boolean(user.telegramChatId),
-      connectedAt: user.telegramConnectedAt,
+      connected: connections.length > 0,
+      connectionCount: connections.length,
+      connections,
     });
   } catch (error) {
+    console.error("Get Telegram Status Error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch Telegram status.",

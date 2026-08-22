@@ -11,6 +11,26 @@ import { sendTelegramMessage } from "../../utils/telegram.js";
    Notify all sellers involved in the order
 ========================================================== */
 
+const getTelegramChatIds = (user) => {
+  const chatIds = [];
+
+  // New multi-chat system
+  if (Array.isArray(user?.telegramConnections)) {
+    for (const connection of user.telegramConnections) {
+      if (connection?.chatId) {
+        chatIds.push(String(connection.chatId));
+      }
+    }
+  }
+
+  // Legacy production connection
+  if (user?.telegramChatId && !chatIds.includes(String(user.telegramChatId))) {
+    chatIds.push(String(user.telegramChatId));
+  }
+
+  return [...new Set(chatIds)];
+};
+
 export const notifySellersNewOrder = async (order) => {
   try {
     const sellerIds = [
@@ -25,11 +45,13 @@ export const notifySellersNewOrder = async (order) => {
 
     const sellers = await Seller.find({
       _id: { $in: sellerIds },
-    }).populate("userId", "name telegramChatId");
+    }).populate("userId", "name telegramChatId telegramConnections");
 
     for (const seller of sellers) {
       try {
-        if (!seller.userId?.telegramChatId) {
+        const chatIds = getTelegramChatIds(seller.userId);
+
+        if (chatIds.length === 0) {
           continue;
         }
 
@@ -67,7 +89,9 @@ Please open your seller dashboard to confirm or mark items unavailable
 aliauf.com/seller/dashboard.
 `.trim();
 
-        await sendTelegramMessage(seller.userId.telegramChatId, message);
+        for (const chatId of chatIds) {
+          await sendTelegramMessage(chatId, message);
+        }
       } catch (error) {
         console.error(
           `Seller New Order Telegram Error (${seller._id}):`,

@@ -1,4 +1,3 @@
-// app/seller/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -14,12 +13,23 @@ export default function SellerDashboard() {
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
 
+  // =========================================================
+  // Telegram State
+  // =========================================================
+
+  const [telegramLoading, setTelegramLoading] = useState(false);
+  const [telegramStatusLoading, setTelegramStatusLoading] = useState(true);
+  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [telegramConnectionCount, setTelegramConnectionCount] = useState(0);
+
   useEffect(() => {
     if (!isLoggedIn) {
       router.replace("/login");
       return;
     }
+
     fetchDashboard();
+    fetchTelegramStatus();
   }, []);
 
   const fetchDashboard = async () => {
@@ -40,6 +50,66 @@ export default function SellerDashboard() {
       router.replace("/login");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // =========================================================
+  // Telegram Status
+  // =========================================================
+
+  const fetchTelegramStatus = async () => {
+    try {
+      setTelegramStatusLoading(true);
+
+      const { data } = await api.get("/telegram/status");
+
+      setTelegramConnected(Boolean(data?.connected));
+      setTelegramConnectionCount(data?.connectionCount || 0);
+    } catch (error) {
+      console.error("Telegram Status Error:", error);
+
+      // Telegram status failure should NOT affect
+      // the seller dashboard.
+      setTelegramConnected(false);
+      setTelegramConnectionCount(0);
+    } finally {
+      setTelegramStatusLoading(false);
+    }
+  };
+
+  // =========================================================
+  // Connect Telegram
+  // =========================================================
+
+  const handleConnectTelegram = async () => {
+    try {
+      setTelegramLoading(true);
+
+      const { data } = await api.get("/telegram/connect");
+
+      if (!data?.telegramUrl) {
+        alert("Telegram connection link could not be generated.");
+        return;
+      }
+
+      // Open Telegram in a new tab/window.
+      window.open(data.telegramUrl, "_blank", "noopener,noreferrer");
+
+      // Telegram connection happens outside the website.
+      // Refresh status after a short delay so that when the
+      // seller returns, the dashboard can show the new status.
+      setTimeout(() => {
+        fetchTelegramStatus();
+      }, 3000);
+    } catch (error: any) {
+      console.error("Telegram Connection Error:", error);
+
+      alert(
+        error.response?.data?.message ||
+          "Failed to connect Telegram. Please try again.",
+      );
+    } finally {
+      setTelegramLoading(false);
     }
   };
 
@@ -239,6 +309,134 @@ export default function SellerDashboard() {
                 {formatCategory(seller.category)}
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* =====================================================
+            Telegram Connection
+        ===================================================== */}
+
+        <div className="mt-8 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="p-6 sm:p-8">
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              {/* Telegram Information */}
+              <div className="flex items-start gap-4">
+                <div
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${
+                    telegramConnected ? "bg-green-100" : "bg-sky-100"
+                  }`}
+                >
+                  <span className="text-2xl" aria-hidden="true">
+                    {telegramConnected ? "✓" : "✈"}
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-green-600">
+                      Telegram Notifications
+                    </p>
+
+                    {!telegramStatusLoading && (
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          telegramConnected
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {telegramConnected ? "Connected" : "Not Connected"}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="mt-1 text-xl font-bold text-gray-900 sm:text-2xl">
+                    Connect Telegram
+                  </h3>
+
+                  {telegramStatusLoading ? (
+                    <p className="mt-2 text-sm text-gray-500">
+                      Checking Telegram connection...
+                    </p>
+                  ) : telegramConnected ? (
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+                      Your Telegram notifications are connected.
+                      {telegramConnectionCount > 0 && (
+                        <>
+                          {" "}
+                          {telegramConnectionCount}{" "}
+                          {telegramConnectionCount === 1
+                            ? "Telegram account is"
+                            : "Telegram accounts are"}{" "}
+                          connected to this seller account.
+                        </>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+                      Connect Telegram to receive important seller notifications
+                      directly on Telegram. You can connect your Telegram
+                      account or your shop workers' Telegram accounts.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Telegram Button */}
+              <div className="shrink-0">
+                <button
+                  type="button"
+                  onClick={handleConnectTelegram}
+                  disabled={telegramLoading}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
+                >
+                  {telegramLoading ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <span aria-hidden="true">✈</span>
+                      {telegramConnected
+                        ? "Connect Another"
+                        : "Connect Telegram"}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Connected accounts information */}
+            {!telegramStatusLoading && telegramConnected && (
+              <div className="mt-6 border-t border-gray-100 pt-5">
+                <div className="rounded-xl bg-green-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
+                      <span className="text-sm font-bold text-green-700">
+                        ✓
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold text-green-800">
+                        Telegram notifications are active
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-green-700">
+                        All connected Telegram accounts can receive
+                        notifications for this seller account.
+                      </p>
+
+                      <p className="mt-2 text-xs font-medium text-green-800">
+                        You can connect additional worker Telegram accounts
+                        using the button above.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

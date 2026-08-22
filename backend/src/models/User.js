@@ -1,4 +1,4 @@
-// user model
+// models/User.js
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
@@ -66,10 +66,40 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
     isSystemAdmin: {
       type: Boolean,
       default: false,
     },
+
+    // ======================================================
+    // Telegram
+    // ======================================================
+
+    // NEW:
+    // Allows one Aliauf account to have multiple Telegram
+    // accounts/chats connected.
+    telegramConnections: [
+      {
+        chatId: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+
+        connectedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
+    // ------------------------------------------------------
+    // LEGACY TELEGRAM FIELDS
+    //
+    // Keep these temporarily so existing production
+    // Telegram connections continue working.
+    // ------------------------------------------------------
 
     telegramChatId: {
       type: String,
@@ -86,6 +116,11 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+// Index the new Telegram chat IDs.
+userSchema.index({
+  "telegramConnections.chatId": 1,
+});
 
 const User = mongoose.model("User", userSchema);
 
