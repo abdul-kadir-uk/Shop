@@ -260,17 +260,14 @@ export default function ProductForm({
           >
             <option value="">Select Category</option>
 
-            <option>Rice</option>
-            <option>Flour</option>
-            <option>Oil</option>
-            <option>Vegetables</option>
-            <option>Fruits</option>
-            <option>Milk</option>
-            <option>Beverages</option>
-            <option>Snacks</option>
-            <option>Cleaning</option>
-            <option>Personal Care</option>
-            <option>Others</option>
+            <option> Rice and Grains </option>
+            <option> Pulses </option>
+            <option> Spices </option>
+            <option> Oil </option>
+            <option> Dry Fruits </option>
+            <option> Tea, Coffee and Beverages </option>
+            <option> Sugar, Salt and Pickles </option>
+            <option> Personal & Household Care </option>
           </select>
         </div>
 
