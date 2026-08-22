@@ -1,18 +1,12 @@
+// app/owner/login/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import adminApi from "@/lib/adminApi";
 
 export default function OwnerLoginPage() {
   const router = useRouter();
-
-  useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-
-    if (token) {
-      router.replace("/owner/admin");
-    }
-  }, [router]);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -22,6 +16,14 @@ export default function OwnerLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const token = localStorage.getItem("adminToken");
+
+    if (token) {
+      router.replace("/owner/admin");
+    }
+  }, [router]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
@@ -29,45 +31,15 @@ export default function OwnerLoginPage() {
     }));
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-
-    if (!token) {
-      router.replace("/owner/login");
-      return;
-    }
-
-    setLoading(false);
-  }, [router]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <h2 className="text-xl font-semibold">Loading...</h2>
-      </div>
-    );
-  }
-
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/admin/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      const response = await adminApi.post("/admin/login", formData);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        alert(data.message || "Login failed");
-        return;
-      }
+      const data = response.data;
 
       // Save token
       localStorage.setItem("adminToken", data.token);
@@ -77,9 +49,10 @@ export default function OwnerLoginPage() {
 
       // Redirect
       router.push("/owner/admin");
-    } catch (error) {
-      console.error(error);
-      alert("Server error. Please try again.");
+    } catch (error: any) {
+      console.error("Admin Login Error:", error);
+
+      alert(error.response?.data?.message || "Server error. Please try again.");
     } finally {
       setLoading(false);
     }
