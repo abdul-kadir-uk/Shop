@@ -1,4 +1,5 @@
 // controllers/deliveryController.js
+
 import DeliveryPartner from "../models/DeliveryPartner.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
@@ -8,16 +9,6 @@ import { ORDER_STATUS, PAYMENT_STATUS } from "../constants/orderStatus.js";
 
 // ======================================================
 // Get Delivery Dashboard
-// ======================================================
-// Returns all dashboard data in a single API response.
-//
-// Includes:
-// - Delivery partner information
-// - Available deliveries count
-// - Pending deliveries count
-// - Completed deliveries count
-// - Total assigned deliveries
-// - Recent pending deliveries
 // ======================================================
 
 export const getDeliveryDashboard = async (req, res) => {
@@ -50,72 +41,115 @@ export const getDeliveryDashboard = async (req, res) => {
 
     const deliveryPartnerId = deliveryPartner._id;
 
-    // --------------------------------------------------
-    // Dashboard counts
-    // --------------------------------------------------
+    // ==================================================
+    // DASHBOARD COUNTS
+    // ==================================================
 
     const [availableDeliveries, pendingDeliveries, completedDeliveries] =
       await Promise.all([
-        // ----------------------------------------------
-        // Available
-        // Confirmed items without delivery partner
-        // ----------------------------------------------
+        // =================================================
+        // AVAILABLE DELIVERIES
+        // =================================================
+        //
+        // The order is available if at least one item:
+        //
+        // - has no delivery partner
+        //
+        // Seller confirmation is NOT required.
+        //
+        // Therefore:
+        //
+        // item.orderStatus = ordered
+        // deliveryPartner = null
+        //
+        // is still available.
+        // =================================================
 
         Order.countDocuments({
+          orderStatus: {
+            $in: [ORDER_STATUS.ORDERED, ORDER_STATUS.CONFIRMED],
+          },
+
           items: {
             $elemMatch: {
-              orderStatus: ORDER_STATUS.CONFIRMED,
               deliveryPartner: null,
             },
           },
         }),
 
-        // ----------------------------------------------
-        // Pending
-        // This delivery partner's confirmed/outForDelivery
-        // items
-        // ----------------------------------------------
+        // =================================================
+        // PENDING DELIVERIES
+        // =================================================
+        //
+        // The delivery partner has accepted the order when
+        // at least one item belongs to this partner.
+        //
+        // IMPORTANT:
+        // We do NOT check item.orderStatus here.
+        //
+        // An accepted item can still be:
+        //
+        // item.orderStatus = ordered
+        //
+        // because seller confirmation is independent.
+        // =================================================
 
         Order.countDocuments({
+          orderStatus: {
+            $in: [
+              ORDER_STATUS.ORDERED,
+              ORDER_STATUS.CONFIRMED,
+              ORDER_STATUS.OUT_FOR_DELIVERY,
+            ],
+          },
+
           items: {
             $elemMatch: {
               deliveryPartner: deliveryPartnerId,
-              orderStatus: {
-                $in: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.OUT_FOR_DELIVERY],
-              },
             },
           },
         }),
 
-        // ----------------------------------------------
-        // Completed
-        // This delivery partner's delivered/cancelled
-        // items
-        // ----------------------------------------------
+        // =================================================
+        // COMPLETED DELIVERIES
+        // =================================================
+        //
+        // Completion is controlled by the WHOLE ORDER status.
+        //
+        // The delivery partner must also own at least one item.
+        // =================================================
 
         Order.countDocuments({
+          orderStatus: {
+            $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED],
+          },
+
           items: {
             $elemMatch: {
               deliveryPartner: deliveryPartnerId,
-              orderStatus: {
-                $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED],
-              },
             },
           },
         }),
       ]);
 
-    // --------------------------------------------------
-    // Get recent pending deliveries
-    // --------------------------------------------------
+    // ==================================================
+    // RECENT PENDING DELIVERIES
+    // ==================================================
 
     const recentOrders = await Order.find({
+      // Parent order is still active
+      orderStatus: {
+        $in: [
+          ORDER_STATUS.ORDERED,
+          ORDER_STATUS.CONFIRMED,
+          ORDER_STATUS.OUT_FOR_DELIVERY,
+        ],
+      },
+
+      // This delivery partner accepted the order
       items: {
         $elemMatch: {
           deliveryPartner: deliveryPartnerId,
-          orderStatus: {
-            $in: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.OUT_FOR_DELIVERY],
-          },
         },
       },
     })
@@ -126,19 +160,16 @@ export const getDeliveryDashboard = async (req, res) => {
       .limit(5)
       .lean();
 
-    // --------------------------------------------------
+    // ==================================================
     // Only return this delivery partner's items
-    // --------------------------------------------------
+    // ==================================================
 
     const recentDeliveries = recentOrders
       .map((order) => {
         const myItems = order.items.filter(
           (item) =>
             item.deliveryPartner &&
-            item.deliveryPartner.toString() === deliveryPartnerId.toString() &&
-            [ORDER_STATUS.CONFIRMED, ORDER_STATUS.OUT_FOR_DELIVERY].includes(
-              item.orderStatus,
-            ),
+            item.deliveryPartner.toString() === deliveryPartnerId.toString(),
         );
 
         if (myItems.length === 0) {
@@ -147,26 +178,39 @@ export const getDeliveryDashboard = async (req, res) => {
 
         return {
           _id: order._id,
+
           orderNumber: order.orderNumber,
+
+          orderStatus: order.orderStatus,
+
           customer: order.customer,
+
           shippingAddress: order.shippingAddress,
+
           deliveryContact: order.deliveryContact,
+
           items: myItems,
+
           pricing: order.pricing,
+
+          paymentMethod: order.paymentMethod,
+
+          paymentStatus: order.paymentStatus,
+
           createdAt: order.createdAt,
         };
       })
       .filter(Boolean);
 
-    // --------------------------------------------------
-    // Total assigned deliveries
-    // --------------------------------------------------
+    // ==================================================
+    // TOTAL ASSIGNED
+    // ==================================================
 
     const totalAssigned = pendingDeliveries + completedDeliveries;
 
-    // --------------------------------------------------
-    // Response
-    // --------------------------------------------------
+    // ==================================================
+    // RESPONSE
+    // ==================================================
 
     return res.status(200).json({
       success: true,

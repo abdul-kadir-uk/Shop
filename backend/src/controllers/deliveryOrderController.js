@@ -461,7 +461,34 @@ export const getMyDeliveryOrders = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Find orders
+    // Find orders assigned to this delivery partner
+    // --------------------------------------------------
+    //
+    // IMPORTANT:
+    //
+    // We ONLY check deliveryPartner here.
+    //
+    // We do NOT check item.orderStatus.
+    //
+    // This is intentional because an accepted order can be:
+    //
+    // Parent order:
+    // ordered
+    //
+    // Item:
+    // ordered
+    //
+    // and it MUST remain visible in My Orders.
+    //
+    // Later seller may change item status to:
+    //
+    // confirmed
+    //
+    // or:
+    //
+    // notAvailable
+    //
+    // and the same order must remain visible.
     // --------------------------------------------------
 
     const orderQuery = {
@@ -475,20 +502,8 @@ export const getMyDeliveryOrders = async (req, res) => {
     };
 
     // --------------------------------------------------
-    // IMPORTANT:
-    //
-    // For pending orders, exclude orders where ALL items
-    // are no longer deliverable.
-    //
-    // An order remains visible if it has at least one
-    // confirmed item.
-    //
-    // Completed orders are NOT affected by this filter.
+    // Find orders
     // --------------------------------------------------
-
-    if (status === "pending") {
-      orderQuery.items.$elemMatch.orderStatus = ORDER_STATUS.CONFIRMED;
-    }
 
     const orders = await Order.find(orderQuery)
       .populate("customer", "name email mobile")
@@ -517,6 +532,13 @@ export const getMyDeliveryOrders = async (req, res) => {
       // ------------------------------------------------
       // Can delivery start?
       // ------------------------------------------------
+      //
+      // Parent must be CONFIRMED.
+      //
+      // ALL items must be resolved.
+      //
+      // At least one item must be CONFIRMED.
+      // ------------------------------------------------
 
       const canStartDelivery =
         order.orderStatus === ORDER_STATUS.CONFIRMED &&
@@ -527,8 +549,6 @@ export const getMyDeliveryOrders = async (req, res) => {
         _id: order._id,
         orderNumber: order.orderNumber,
 
-        // IMPORTANT:
-        // This is the DELIVERY/WHOLE ORDER status.
         orderStatus: order.orderStatus,
 
         customer: order.customer,
@@ -547,13 +567,8 @@ export const getMyDeliveryOrders = async (req, res) => {
 
         createdAt: order.createdAt,
 
-        // ------------------------------------------------
-        // Seller resolution state
-        // ------------------------------------------------
-
         canStartDelivery,
 
-        // These are useful for frontend debugging/UI.
         allItemsResolved,
 
         hasDeliverableItems: orderHasDeliverableItems,
