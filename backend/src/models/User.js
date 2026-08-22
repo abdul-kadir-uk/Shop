@@ -76,6 +76,17 @@ const userSchema = new mongoose.Schema(
     // Telegram
     // ======================================================
 
+    telegramConnectToken: {
+      type: String,
+      default: null,
+      index: true,
+    },
+
+    telegramConnectTokenExpiresAt: {
+      type: Date,
+      default: null,
+    },
+
     // NEW:
     // Allows one Aliauf account to have multiple Telegram
     // accounts/chats connected.

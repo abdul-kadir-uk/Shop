@@ -1,6 +1,12 @@
 // telegramController.js
-import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import User from "../models/User.js";
+import User from "../models/User.js";
+
+// ==========================================================
+// Generate Telegram Connection Link
+// GET /api/telegram/connect
+// ==========================================================
 
 // ==========================================================
 // Generate Telegram Connection Link
@@ -18,16 +24,30 @@ export const generateTelegramConnectLink = async (req, res) => {
       });
     }
 
-    const token = jwt.sign(
-      {
-        id: user._id.toString(),
-        purpose: "telegramConnect",
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "10m",
-      },
-    );
+    // ------------------------------------------------------
+    // Generate a short Telegram-compatible random token.
+    //
+    // 24 bytes -> 32 characters using base64url.
+    //
+    // This is intentionally much shorter than a JWT.
+    // ------------------------------------------------------
+
+    const telegramConnectToken = crypto.randomBytes(24).toString("base64url");
+
+    // ------------------------------------------------------
+    // Token expires in 10 minutes.
+    // ------------------------------------------------------
+
+    const telegramConnectTokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    // ------------------------------------------------------
+    // Store token temporarily for this user.
+    // ------------------------------------------------------
+
+    user.telegramConnectToken = telegramConnectToken;
+    user.telegramConnectTokenExpiresAt = telegramConnectTokenExpiresAt;
+
+    await user.save();
 
     const botUsername = process.env.TELEGRAM_BOT_USERNAME;
 
@@ -38,7 +58,11 @@ export const generateTelegramConnectLink = async (req, res) => {
       });
     }
 
-    const telegramUrl = `https://t.me/${botUsername}?start=${token}`;
+    // ------------------------------------------------------
+    // Telegram deep link now contains ONLY the short token.
+    // ------------------------------------------------------
+
+    const telegramUrl = `https://t.me/${botUsername}?start=${telegramConnectToken}`;
 
     return res.status(200).json({
       success: true,
@@ -100,24 +124,39 @@ export const telegramWebhook = async (req, res) => {
       return res.sendStatus(200);
     }
 
-    let decoded;
+    // ======================================================
+    // Find the user using the short Telegram connection token.
+    //
+    // Token must:
+    // 1. Match the stored token
+    // 2. Still be within its 10-minute expiry
+    // ======================================================
 
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      return res.sendStatus(200);
-    }
-
-    if (decoded.purpose !== "telegramConnect") {
-      return res.sendStatus(200);
-    }
-    console.log("TELEGRAM DECODED USER ID:", decoded.id);
-    const user = await User.findById(decoded.id);
+    const user = await User.findOne({
+      telegramConnectToken: token,
+      telegramConnectTokenExpiresAt: {
+        $gt: new Date(),
+      },
+    });
 
     if (!user) {
+      console.warn("Invalid or expired Telegram connection token.");
       return res.sendStatus(200);
     }
 
+    console.log("TELEGRAM CONNECT TOKEN MATCHED USER:", user._id);
+
+    // ======================================================
+    // Token is one-time use.
+    //
+    // Clear it immediately after successful lookup so the same
+    // connection link cannot be reused.
+    // ======================================================
+
+    user.telegramConnectToken = null;
+    user.telegramConnectTokenExpiresAt = null;
+
+    await user.save();
     const telegramChatId = String(chatId);
 
     // ======================================================
