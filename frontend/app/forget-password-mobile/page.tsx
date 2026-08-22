@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 
 export default function ForgotPasswordMobilePage() {
   const router = useRouter();
@@ -42,32 +43,19 @@ export default function ForgotPasswordMobilePage() {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        "http://localhost:5000/api/auth/password-reset/send-otp",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            mobile: normalizedMobile,
-          }),
-        },
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message || "Unable to send OTP.");
-        return;
-      }
+      const { data } = await api.post("/auth/password-reset/send-otp", {
+        mobile: normalizedMobile,
+      });
 
       setOtpSent(true);
       setMessage(data.message || "OTP sent successfully.");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
 
-      setError("Unable to connect to the server. Please try again.");
+      setError(
+        error.response?.data?.message ||
+          "Unable to connect to the server. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -98,26 +86,10 @@ export default function ForgotPasswordMobilePage() {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        "http://localhost:5000/api/auth/password-reset/verify-otp",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            mobile: normalizedMobile,
-            otp: normalizedOtp,
-          }),
-        },
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message || "Invalid OTP.");
-        return;
-      }
+      const { data } = await api.post("/auth/password-reset/verify-otp", {
+        mobile: normalizedMobile,
+        otp: normalizedOtp,
+      });
 
       // ---------------------------------
       // Save existing reset token
@@ -130,10 +102,13 @@ export default function ForgotPasswordMobilePage() {
       // ---------------------------------
 
       router.push("/reset-password");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
 
-      setError("Unable to connect to the server. Please try again.");
+      setError(
+        error.response?.data?.message ||
+          "Unable to connect to the server. Please try again.",
+      );
     } finally {
       setLoading(false);
     }

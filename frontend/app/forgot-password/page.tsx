@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import api from "@/lib/api";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -30,23 +31,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(
-        "http://localhost:5000/api/auth/verify-security",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        },
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message);
-        return;
-      }
+      const { data } = await api.post("/auth/verify-security", formData);
 
       // Save reset token for reset-password page
       localStorage.setItem("resetToken", data.resetToken);
@@ -54,9 +39,9 @@ export default function ForgotPasswordPage() {
       alert(data.message);
 
       router.push("/reset-password");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Something went wrong");
+      alert(error.response?.data?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -133,6 +118,7 @@ export default function ForgotPasswordPage() {
             {loading ? "Verifying..." : "Verify"}
           </button>
         </form>
+
         <div className="mt-6 text-center">
           <Link
             href="/forget-password-mobile"

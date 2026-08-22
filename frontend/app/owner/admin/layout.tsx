@@ -1,10 +1,10 @@
-// app/owner/admin/Layout.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
+import adminApi from "@/lib/adminApi";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -27,23 +27,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       }
 
       try {
-        const response = await fetch(
-          "http://localhost:5000/api/admin/profile",
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        if (!response.ok) {
-          localStorage.removeItem("adminToken");
-          localStorage.removeItem("admin");
-
-          router.replace("/owner/login");
-          return;
-        }
+        await adminApi.get("/api/admin/profile");
 
         setCheckingAuth(false);
       } catch (error) {
@@ -103,12 +87,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
     try {
       if (token) {
-        await fetch("http://localhost:5000/api/admin/logout", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        await adminApi.post("/api/admin/logout");
       }
     } catch (error) {
       console.error(error);

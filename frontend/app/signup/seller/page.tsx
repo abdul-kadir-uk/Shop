@@ -1,9 +1,8 @@
-// app/signup/seller/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
+import api from "@/lib/api";
 
 interface City {
   _id: string;
@@ -59,7 +58,7 @@ export default function SellerSignupPage() {
       try {
         setIsLoadingCities(true);
 
-        const { data } = await axios.get("http://localhost:5000/api/cities");
+        const { data } = await api.get("/cities");
 
         if (data.success) {
           setCities(data.cities || []);
@@ -196,22 +195,19 @@ export default function SellerSignupPage() {
     try {
       setIsSubmitting(true);
 
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/seller/signup",
-        {
-          name: formData.name,
-          email: formData.email,
-          mobile: formData.mobile,
-          password: formData.password,
-          shopName: formData.shopName,
-          category: formData.category,
-          address: formData.address,
-          cityId: formData.cityId,
-          gstinNumber: formData.gstinNumber.toUpperCase(),
-          securityQuestion: formData.securityQuestion,
-          securityAnswer: formData.securityAnswer.trim().toLowerCase(),
-        },
-      );
+      const { data } = await api.post("/auth/seller/signup", {
+        name: formData.name,
+        email: formData.email,
+        mobile: formData.mobile,
+        password: formData.password,
+        shopName: formData.shopName,
+        category: formData.category,
+        address: formData.address,
+        cityId: formData.cityId,
+        gstinNumber: formData.gstinNumber.toUpperCase(),
+        securityQuestion: formData.securityQuestion,
+        securityAnswer: formData.securityAnswer.trim().toLowerCase(),
+      });
 
       if (data.success) {
         setOtpSent(true);
@@ -244,13 +240,10 @@ export default function SellerSignupPage() {
     try {
       setOtpLoading(true);
 
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/seller/signup/verify-otp",
-        {
-          mobile: formData.mobile,
-          otp,
-        },
-      );
+      const { data } = await api.post("/auth/seller/signup/verify-otp", {
+        mobile: formData.mobile,
+        otp,
+      });
 
       if (data.success) {
         router.push("/signup/seller/under-review");
@@ -281,22 +274,19 @@ export default function SellerSignupPage() {
       setOtpLoading(true);
       setServerError("");
 
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/seller/signup",
-        {
-          name: formData.name,
-          email: formData.email,
-          mobile: formData.mobile,
-          password: formData.password,
-          shopName: formData.shopName,
-          category: formData.category,
-          address: formData.address,
-          cityId: formData.cityId,
-          gstinNumber: formData.gstinNumber.toUpperCase(),
-          securityQuestion: formData.securityQuestion,
-          securityAnswer: formData.securityAnswer.trim().toLowerCase(),
-        },
-      );
+      const { data } = await api.post("/auth/seller/signup", {
+        name: formData.name,
+        email: formData.email,
+        mobile: formData.mobile,
+        password: formData.password,
+        shopName: formData.shopName,
+        category: formData.category,
+        address: formData.address,
+        cityId: formData.cityId,
+        gstinNumber: formData.gstinNumber.toUpperCase(),
+        securityQuestion: formData.securityQuestion,
+        securityAnswer: formData.securityAnswer.trim().toLowerCase(),
+      });
 
       if (data.success) {
         setOtp("");

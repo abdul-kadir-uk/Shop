@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
+import api from "@/lib/api";
 
 interface City {
   _id: string;
@@ -44,7 +44,7 @@ export default function DeliverySignupPage() {
       try {
         setIsLoadingCities(true);
 
-        const { data } = await axios.get("http://localhost:5000/api/cities");
+        const { data } = await api.get("/cities");
 
         if (data.success) {
           setCities(data.cities || []);
@@ -212,10 +212,7 @@ export default function DeliverySignupPage() {
       // API Request
       // ---------------------------------
 
-      const response = await axios.post(
-        "http://localhost:5000/api/auth/delivery/signup",
-        data,
-      );
+      const response = await api.post("/auth/delivery/signup", data);
 
       if (response.data.success) {
         router.push(

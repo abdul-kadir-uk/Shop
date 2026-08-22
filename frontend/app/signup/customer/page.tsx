@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 export default function CustomerSignupPage() {
@@ -123,18 +123,15 @@ export default function CustomerSignupPage() {
       setLoading(true);
       setError("");
 
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/customer/signup",
-        {
-          name: formData.fullName,
-          email: formData.email,
-          mobile: formData.phone,
-          password: formData.password,
-          address: formData.address,
-          securityQuestion: formData.securityQuestion,
-          securityAnswer: formData.securityAnswer.trim().toLowerCase(),
-        },
-      );
+      const { data } = await api.post("/auth/customer/signup", {
+        name: formData.fullName,
+        email: formData.email,
+        mobile: formData.phone,
+        password: formData.password,
+        address: formData.address,
+        securityQuestion: formData.securityQuestion,
+        securityAnswer: formData.securityAnswer.trim().toLowerCase(),
+      });
 
       if (data.success) {
         setOtpSent(true);
@@ -166,13 +163,10 @@ export default function CustomerSignupPage() {
       setOtpLoading(true);
       setError("");
 
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/customer/signup/verify-otp",
-        {
-          mobile: formData.phone,
-          otp,
-        },
-      );
+      const { data } = await api.post("/auth/customer/signup/verify-otp", {
+        mobile: formData.phone,
+        otp,
+      });
 
       if (data.success) {
         // --------------------------------------------------
@@ -213,18 +207,15 @@ export default function CustomerSignupPage() {
       setOtpLoading(true);
       setError("");
 
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/customer/signup",
-        {
-          name: formData.fullName,
-          email: formData.email,
-          mobile: formData.phone,
-          password: formData.password,
-          address: formData.address,
-          securityQuestion: formData.securityQuestion,
-          securityAnswer: formData.securityAnswer.trim().toLowerCase(),
-        },
-      );
+      const { data } = await api.post("/auth/customer/signup", {
+        name: formData.fullName,
+        email: formData.email,
+        mobile: formData.phone,
+        password: formData.password,
+        address: formData.address,
+        securityQuestion: formData.securityQuestion,
+        securityAnswer: formData.securityAnswer.trim().toLowerCase(),
+      });
 
       if (data.success) {
         setOtp("");

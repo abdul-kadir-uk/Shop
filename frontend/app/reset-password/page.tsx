@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -42,32 +43,20 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/auth/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token,
-          newPassword: formData.newPassword,
-        }),
+      const { data } = await api.post("/auth/reset-password", {
+        token,
+        newPassword: formData.newPassword,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message);
-        return;
-      }
 
       localStorage.removeItem("resetToken");
 
       alert(data.message);
 
       router.push("/login");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Something went wrong.");
+
+      alert(error.response?.data?.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
