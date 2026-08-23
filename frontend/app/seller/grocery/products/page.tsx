@@ -10,6 +10,7 @@ interface Product {
   productName: string;
   productCategory: string;
   price: number;
+  discountPrice: number | null;
   quantity: number;
   unit: string;
   stock: number;
@@ -154,27 +155,15 @@ export default function GroceryProductsPage() {
           >
             <option value="">All Categories</option>
 
-            <option value="Rice">Rice</option>
-
-            <option value="Flour">Flour</option>
-
-            <option value="Oil">Oil</option>
-
-            <option value="Vegetables">Vegetables</option>
-
-            <option value="Fruits">Fruits</option>
-
-            <option value="Milk">Milk</option>
-
-            <option value="Beverages">Beverages</option>
-
-            <option value="Snacks">Snacks</option>
-
-            <option value="Cleaning">Cleaning</option>
-
-            <option value="Personal Care">Personal Care</option>
-
-            <option value="Others">Others</option>
+            <option value="Rice and Grains"> Rice </option>
+            <option> flour and staples </option>
+            <option> Pulses </option>
+            <option> Spices </option>
+            <option> Oil </option>
+            <option> Dry Fruits </option>
+            <option> Tea, Coffee and Beverages </option>
+            <option> Sugar, Salt and Pickles </option>
+            <option> Personal & Household Care </option>
           </select>
 
           {/* Sub Category */}
@@ -302,7 +291,21 @@ export default function GroceryProductsPage() {
 
                     <td className="px-5 py-4">{product.productCategory}</td>
 
-                    <td className="px-5 py-4">₹{product.price}</td>
+                    <td className="px-5 py-4">
+                      {product.discountPrice !== null &&
+                      product.discountPrice > 0 ? (
+                        <div className="flex flex-col">
+                          <span className="line-through text-gray-400">
+                            ₹{product.price}
+                          </span>
+                          <span className="font-semibold text-green-600">
+                            ₹{product.discountPrice}
+                          </span>
+                        </div>
+                      ) : (
+                        <span>₹{product.price}</span>
+                      )}
+                    </td>
 
                     <td className="px-5 py-4">
                       {product.isAvailable ? "Available" : "OutOfStock"}
@@ -382,7 +385,21 @@ export default function GroceryProductsPage() {
                       {product.productCategory}
                     </p>
 
-                    <p className="font-medium mt-1">₹{product.price}</p>
+                    <p className="font-medium mt-1">
+                      {product.discountPrice !== null &&
+                      product.discountPrice > 0 ? (
+                        <>
+                          <span className="line-through text-gray-400 mr-2">
+                            ₹{product.price}
+                          </span>
+                          <span className="font-semibold text-green-600">
+                            ₹{product.discountPrice}
+                          </span>
+                        </>
+                      ) : (
+                        <>₹{product.price}</>
+                      )}
+                    </p>
                   </div>
                 </div>
 

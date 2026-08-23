@@ -260,7 +260,8 @@ export default function ProductForm({
           >
             <option value="">Select Category</option>
 
-            <option> Rice and Grains </option>
+            <option value="Rice and Grains"> Rice </option>
+            <option> flour and staples </option>
             <option> Pulses </option>
             <option> Spices </option>
             <option> Oil </option>

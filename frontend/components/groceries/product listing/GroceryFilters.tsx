@@ -127,17 +127,15 @@ export default function GroceryFilters({
                 className="h-10 w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 pr-8 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
               >
                 <option value="">All Categories</option>
-                <option value="Rice">Rice</option>
-                <option value="Flour">Flour</option>
-                <option value="Oil">Oil</option>
-                <option value="Vegetables">Vegetables</option>
-                <option value="Fruits">Fruits</option>
-                <option value="Milk">Milk</option>
-                <option value="Beverages">Beverages</option>
-                <option value="Snacks">Snacks</option>
-                <option value="Cleaning">Cleaning</option>
-                <option value="Personal Care">Personal Care</option>
-                <option value="Others">Others</option>
+                <option value="Rice and Grains"> Rice </option>
+                <option> flour and staples </option>
+                <option> Pulses </option>
+                <option> Spices </option>
+                <option> Oil </option>
+                <option> Dry Fruits </option>
+                <option> Tea, Coffee and Beverages </option>
+                <option> Sugar, Salt and Pickles </option>
+                <option> Personal & Household Care </option>
               </select>
 
               <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
