@@ -27,6 +27,9 @@ export default function DeliverySignupPage() {
     cityId: "",
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [cities, setCities] = useState<City[]>([]);
   const [isLoadingCities, setIsLoadingCities] = useState(true);
 
@@ -273,23 +276,45 @@ export default function DeliverySignupPage() {
             className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
           />
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full border rounded-xl p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? "hide" : "show"}
+            </button>
+          </div>
 
-          <input
-            type="password"
-            name="confirmPassword"
-            placeholder="Confirm Password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              name="confirmPassword"
+              placeholder="Confirm Password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              className="w-full border rounded-xl p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+              aria-label={
+                showConfirmPassword ? "Hide password" : "Show password"
+              }
+            >
+              {showConfirmPassword ? "hide" : "show"}
+            </button>
+          </div>
 
           <input
             type="tel"
