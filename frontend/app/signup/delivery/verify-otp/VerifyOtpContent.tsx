@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import axios from "axios";
+import api from "@/lib/api";
 
 export default function VerifyOtpContent() {
   const router = useRouter();
@@ -56,13 +56,10 @@ export default function VerifyOtpContent() {
     try {
       setLoading(true);
 
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/delivery/signup/verify-otp",
-        {
-          mobile,
-          otp,
-        },
-      );
+      const { data } = await api.post("/auth/delivery/signup/verify-otp", {
+        mobile,
+        otp,
+      });
 
       if (data.success) {
         router.push("/signup/delivery/under-review");
