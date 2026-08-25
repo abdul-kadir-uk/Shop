@@ -1,3 +1,4 @@
+// app/seller/grocery/products/view/[id]/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,6 +12,9 @@ export default function ViewProductPage() {
 
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<any>(null);
+
+  // Image preview
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProduct();
@@ -87,7 +91,8 @@ export default function ViewProductPage() {
             <img
               src={product.mainImage?.url}
               alt={product.productName}
-              className="w-full rounded-xl border object-cover aspect-square"
+              onClick={() => setSelectedImage(product.mainImage?.url)}
+              className="w-full rounded-xl border object-cover aspect-square cursor-pointer hover:opacity-90"
             />
 
             {/* Description Images */}
@@ -102,7 +107,8 @@ export default function ViewProductPage() {
                       key={image.key}
                       src={image.url}
                       alt=""
-                      className="rounded-lg border h-24 sm:h-28 object-cover w-full"
+                      onClick={() => setSelectedImage(image.url)}
+                      className="rounded-lg border h-24 sm:h-28 object-cover w-full cursor-pointer hover:opacity-90"
                     />
                   ))}
                 </div>
@@ -215,8 +221,45 @@ export default function ViewProductPage() {
           </div>
         </div>
       </div>
+
+      {/* Image Preview */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="
+                absolute -top-3 -right-3
+                w-9 h-9
+                rounded-full
+                bg-white
+                text-black
+                text-xl
+                font-bold
+                shadow
+                hover:bg-gray-200
+              "
+            >
+              ×
+            </button>
+
+            <img
+              src={selectedImage}
+              alt="Product preview"
+              className="max-w-full max-h-[90vh] rounded-lg object-contain"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
+
   function Info({ title, value }: { title: string; value: React.ReactNode }) {
     return (
       <div className="border rounded-lg p-4">

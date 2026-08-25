@@ -28,6 +28,9 @@ export default function GroceryProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
 
+  // Image preview
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
   // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -276,11 +279,14 @@ export default function GroceryProductsPage() {
                       <img
                         src={product.mainImage.url}
                         alt={product.productName}
+                        onClick={() => setSelectedImage(product.mainImage.url)}
                         className="
                     w-16 h-16
                     rounded-lg
                     object-cover
                     border
+                    cursor-pointer
+                    hover:opacity-80
                     "
                       />
                     </td>
@@ -370,11 +376,14 @@ export default function GroceryProductsPage() {
                   <img
                     src={product.mainImage.url}
                     alt={product.productName}
+                    onClick={() => setSelectedImage(product.mainImage.url)}
                     className="
                 w-20 h-20
                 rounded-lg
                 object-cover
                 border
+                cursor-pointer
+                hover:opacity-80
                 "
                   />
 
@@ -453,7 +462,7 @@ export default function GroceryProductsPage() {
               </div>
             ))}
           </div>
-          {/* Pagination */}
+
           {/* Pagination */}
           <div
             className="
@@ -506,6 +515,42 @@ export default function GroceryProductsPage() {
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="
+                absolute -top-3 -right-3
+                w-9 h-9
+                rounded-full
+                bg-white
+                text-black
+                text-xl
+                font-bold
+                shadow
+                hover:bg-gray-200
+              "
+            >
+              ×
+            </button>
+
+            <img
+              src={selectedImage}
+              alt="Product preview"
+              className="max-w-full max-h-[90vh] rounded-lg object-contain"
+            />
           </div>
         </div>
       )}

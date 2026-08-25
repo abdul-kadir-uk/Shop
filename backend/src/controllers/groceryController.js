@@ -286,7 +286,7 @@ export const calculateGroceryProductPrice = async (req, res) => {
     const sellingPrice =
       variant.discountPrice !== null &&
       variant.discountPrice !== undefined &&
-      variant.discountPrice >= 0 &&
+      variant.discountPrice > 0 &&
       variant.discountPrice < variant.price
         ? variant.discountPrice
         : variant.price;

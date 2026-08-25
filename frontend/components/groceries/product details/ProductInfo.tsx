@@ -197,6 +197,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const discountPercentage =
     pricing &&
     pricing.discountPrice !== null &&
+    pricing.discountPrice > 0 &&
     pricing.price > 0 &&
     pricing.discountPrice < pricing.price
       ? Math.round(
@@ -207,6 +208,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const hasDiscount =
     pricing !== null &&
     pricing.discountPrice !== null &&
+    pricing.discountPrice > 0 &&
     pricing.discountPrice < pricing.price;
 
   // ======================================================

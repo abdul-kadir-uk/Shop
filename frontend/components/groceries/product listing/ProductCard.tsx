@@ -37,7 +37,9 @@ export default function ProductCard({ product }: ProductCardProps) {
   const [message, setMessage] = useState("");
 
   const hasDiscount =
-    product.discountPrice !== null && product.discountPrice < product.price;
+    product.discountPrice !== null &&
+    product.discountPrice > 0 &&
+    product.discountPrice < product.price;
 
   const discount = hasDiscount
     ? Math.round(
