@@ -269,6 +269,11 @@ export default function ProductForm({
             <option> Tea, Coffee and Beverages </option>
             <option> Sugar, Salt and Pickles </option>
             <option> Personal & Household Care </option>
+            <option> Dairy Products </option>
+            <option> Cold Drinks </option>
+            <option> Chips, Namkeen and Snacks </option>
+            <option> Choclates </option>
+            <option> Biscuits </option>
           </select>
         </div>
 
