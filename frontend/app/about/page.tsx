@@ -43,18 +43,11 @@ const AboutPage = () => {
 
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
                 <Link
-                  href="/groceries"
+                  href="/"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800"
                 >
-                  Explore Products
+                  Explore Our Services
                   <ArrowRight className="h-4 w-4" />
-                </Link>
-
-                <Link
-                  href="/"
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50"
-                >
-                  Back to Home
                 </Link>
               </div>
             </div>
@@ -202,7 +195,7 @@ const AboutPage = () => {
             </p>
 
             <Link
-              href="/groceries"
+              href="/"
               className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-bold text-slate-900 transition hover:-translate-y-0.5 hover:bg-slate-100"
             >
               Start Exploring
