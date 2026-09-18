@@ -4,8 +4,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import GrocerySidebar from "@/components/seller/GrocerySidebar";
-import GroceryHeader from "@/components/seller/GroceryHeader";
+import GrocerySidebar from "@/components/seller/grocery/GrocerySidebar";
+import GroceryHeader from "@/components/seller/grocery/GroceryHeader";
 import { useAuth } from "@/context/authContext";
 
 export default function GroceryLayout({

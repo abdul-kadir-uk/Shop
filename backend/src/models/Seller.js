@@ -61,7 +61,7 @@ const sellerSchema = new mongoose.Schema(
 
     category: {
       type: String,
-      enum: ["groceries", "mobile-repair"],
+      enum: ["groceries", "mobiles"],
       required: true,
     },
 

@@ -7,12 +7,19 @@ import adminRoutes from "./routes/adminRoutes.js";
 import sellerRoutes from "./routes/sellerRoutes.js";
 import deliveryRoutes from "./routes/deliveryRoutes.js";
 import groceryProductRoutes from "./routes/groceryProductRoutes.js";
+import mobileProductRoutes from "./routes/mobileProductRoutes.js";
 import groceriesRoutes from "./routes/groceriesRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
 import checkoutRoutes from "./routes/checkoutRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import cityRoutes from "./routes/cityRoutes.js";
 import telegramRoutes from "./routes/telegramRoutes.js";
+import mobileRoutes from "./routes/mobileRoutes.js";
+import mobileCartRoutes from "./routes/mobileCartRoutes.js";
+import mobileCheckoutRoutes from "./routes/mobileCheckoutRoutes.js";
+import mobileOrderRoutes from "./routes/mobileOrderRoutes.js";
+import mobileSellerOrderRoutes from "./routes/mobileSellerOrderRoutes.js";
+import mobileDeliveryOrderRoutes from "./routes/mobileDeliveryOrderRoutes.js";
 
 const app = express();
 
@@ -66,12 +73,22 @@ app.use("/api/delivery", deliveryRoutes);
 app.use("/api/seller/grocery", groceryProductRoutes);
 app.use("/api/groceries", groceriesRoutes);
 
+app.use("/api/seller/mobile", mobileProductRoutes);
+app.use("/api/mobiles", mobileRoutes);
+
 app.use("/api/cart", cartRoutes);
 app.use("/api/checkout", checkoutRoutes);
 app.use("/api/orders", orderRoutes);
 
+app.use("/api/mobile-cart", mobileCartRoutes);
+app.use("/api/mobile-checkout", mobileCheckoutRoutes);
+app.use("/api/mobile-orders", mobileOrderRoutes);
+
 app.use("/api/cities", cityRoutes);
 app.use("/api/telegram", telegramRoutes);
+
+app.use("/api/seller/mobile-orders", mobileSellerOrderRoutes);
+app.use("/api/delivery/mobile-orders", mobileDeliveryOrderRoutes);
 
 // --------------------------------------------------
 // Health Check Route

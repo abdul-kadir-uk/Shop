@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import ProductForm from "@/components/seller/ProductForm";
+import ProductForm from "@/components/seller/grocery/ProductForm";
 import api from "@/lib/api";
 
 export default function AddProductPage() {

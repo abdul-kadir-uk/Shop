@@ -57,7 +57,7 @@ export const uploadProductImages = multer({
 
   {
     name: "descriptionImages",
-    maxCount: 4,
+    maxCount: 8,
   },
 ]);
 

@@ -1,3 +1,4 @@
+// components/groceries/orders/OrderDetails.tsx
 "use client";
 
 import { MapPin, Phone, CreditCard, IndianRupee } from "lucide-react";

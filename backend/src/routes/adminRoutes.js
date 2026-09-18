@@ -91,6 +91,11 @@ import {
   updateSellerEarningPaymentStatus,
 } from "../controllers/adminSellerEarningsController.js";
 
+import {
+  getDeliveryPartnerCategories,
+  updateDeliveryPartnerCategories,
+} from "../controllers/deliveryCategoryController.js";
+
 import adminMiddleware from "../middleware/adminMiddleware.js";
 import protect from "../middleware/authMiddleware.js";
 
@@ -249,6 +254,24 @@ router.delete(
   protect,
   adminMiddleware,
   removeDeliveryPartnerAssignment,
+);
+
+// ======================
+// DELIVERY PARTNER CATEGORY ASSIGNMENT
+// ======================
+
+router.get(
+  "/delivery-partners/:deliveryPartnerId/categories",
+  protect,
+  adminMiddleware,
+  getDeliveryPartnerCategories,
+);
+
+router.put(
+  "/delivery-partners/:deliveryPartnerId/categories",
+  protect,
+  adminMiddleware,
+  updateDeliveryPartnerCategories,
 );
 
 // ======================

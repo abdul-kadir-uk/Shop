@@ -1,3 +1,4 @@
+// app/seller/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -125,12 +126,8 @@ export default function SellerDashboard() {
     }
 
     // Mobile repair seller
-    if (
-      category === "mobile-repair" ||
-      category === "mobile repair" ||
-      category === "mobile_repair"
-    ) {
-      router.push("/seller/mobile-repair");
+    if (category === "mobiles") {
+      router.push("/seller/mobiles");
       return;
     }
 

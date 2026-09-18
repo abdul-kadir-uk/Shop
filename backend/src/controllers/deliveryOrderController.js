@@ -1,8 +1,11 @@
 // controllers/deliveryOrderController.js
 
 import mongoose from "mongoose";
+
 import Order from "../models/Order.js";
+import MobileOrder from "../models/MobileOrder.js";
 import DeliveryPartner from "../models/DeliveryPartner.js";
+
 import { createDeliveryEarning } from "../services/earnings/deliveryEarningService.js";
 
 import {
@@ -13,16 +16,6 @@ import {
 
 // ======================================================
 // Helper: Check whether item is seller-resolved
-// ======================================================
-//
-// Seller-resolved statuses:
-// confirmed
-// notAvailable
-// cancelled
-//
-// NOTE:
-// For starting delivery, cancelled is NOT treated as
-// a deliverable item, but it is considered resolved.
 // ======================================================
 
 const isItemResolved = (item) => {
@@ -48,35 +41,51 @@ const areAllItemsResolved = (items = []) => {
 // ======================================================
 // Helper: Check whether order has deliverable items
 // ======================================================
-//
-// Only CONFIRMED items can actually be delivered.
-//
-// NOT_AVAILABLE / CANCELLED items are not deliverable.
-// ======================================================
 
 const hasDeliverableItems = (items = []) => {
   return items.some((item) => item.orderStatus === ORDER_STATUS.CONFIRMED);
 };
 
 // ======================================================
+// Helper: Empty response
+// ======================================================
+
+const emptyOrdersResponse = (res) => {
+  return res.status(200).json({
+    success: true,
+    count: 0,
+    totalOrders: 0,
+    totalPages: 0,
+    page: 1,
+    limit: 10,
+    orders: [],
+  });
+};
+
+// ======================================================
 // Get Available Delivery Orders
 // ======================================================
 //
-// A delivery partner can see and accept an order as soon
-// as the customer places it.
+// Supports:
 //
-// Seller confirmation is NOT required.
+// groceries -> Order model
+// mobiles   -> MobileOrder model
+//
+// Delivery partner must have:
+// 1. Assigned category
+// 2. Assigned city
 //
 // Example:
 //
-// Parent order:
-// ordered
+// assignedCategories = ["groceries"]
+// -> only grocery orders
 //
-// Item:
-// ordered
-// deliveryPartner: null
+// assignedCategories = ["mobiles"]
+// -> only mobile orders
 //
-// The order IS available.
+// assignedCategories = ["groceries", "mobiles"]
+// -> grocery + mobile orders
+// ======================================================
 
 export const getAvailableDeliveryOrders = async (req, res) => {
   try {
@@ -107,21 +116,28 @@ export const getAvailableDeliveryOrders = async (req, res) => {
     }
 
     // --------------------------------------------------
+    // Assigned categories
+    // --------------------------------------------------
+
+    const assignedCategories = deliveryPartner.assignedCategories || [];
+
+    const canDeliverGroceries = assignedCategories.includes("groceries");
+
+    const canDeliverMobiles = assignedCategories.includes("mobiles");
+
+    // No category assigned
+    if (!canDeliverGroceries && !canDeliverMobiles) {
+      return emptyOrdersResponse(res);
+    }
+
+    // --------------------------------------------------
     // Assigned cities
     // --------------------------------------------------
 
     const assignedCities = deliveryPartner.assignedCities || [];
 
     if (assignedCities.length === 0) {
-      return res.status(200).json({
-        success: true,
-        count: 0,
-        totalOrders: 0,
-        totalPages: 0,
-        page: 1,
-        limit: 10,
-        orders: [],
-      });
+      return emptyOrdersResponse(res);
     }
 
     // --------------------------------------------------
@@ -133,24 +149,10 @@ export const getAvailableDeliveryOrders = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // --------------------------------------------------
-    // Find available orders
-    // --------------------------------------------------
-    //
-    // An order is available when:
-    //
-    // 1. Parent order status is either:
-    //      - ordered
-    //      - confirmed
-    //
-    // 2. Order belongs to one of the delivery partner's
-    //    assigned cities.
-    //
-    // 3. At least one item has no delivery partner assigned.
-    //
-    // We intentionally do NOT check item.orderStatus here.
+    // Common query
     // --------------------------------------------------
 
-    const orders = await Order.find({
+    const orderQuery = {
       orderStatus: {
         $in: [ORDER_STATUS.ORDERED, ORDER_STATUS.CONFIRMED],
       },
@@ -164,12 +166,60 @@ export const getAvailableDeliveryOrders = async (req, res) => {
           deliveryPartner: null,
         },
       },
-    })
-      .populate("customer", "name email mobile")
-      .populate("items.seller", "shopName address")
-      .populate("items.product", "productName slug")
-      .sort({ createdAt: -1 })
-      .lean();
+    };
+
+    // --------------------------------------------------
+    // Fetch Grocery + Mobile orders
+    // --------------------------------------------------
+
+    const promises = [];
+
+    if (canDeliverGroceries) {
+      promises.push(
+        Order.find(orderQuery)
+          .populate("customer", "name email mobile")
+          .populate("items.seller", "shopName address")
+          .populate("items.product", "productName slug")
+          .sort({ createdAt: -1 })
+          .lean()
+          .then((orders) =>
+            orders.map((order) => ({
+              ...order,
+              category: "groceries",
+            })),
+          ),
+      );
+    }
+
+    if (canDeliverMobiles) {
+      promises.push(
+        MobileOrder.find(orderQuery)
+          .populate("customer", "name email mobile")
+          .populate("items.seller", "shopName address")
+          .populate("items.product", "productName slug")
+          .sort({ createdAt: -1 })
+          .lean()
+          .then((orders) =>
+            orders.map((order) => ({
+              ...order,
+              category: "mobiles",
+            })),
+          ),
+      );
+    }
+
+    const results = await Promise.all(promises);
+
+    // --------------------------------------------------
+    // Merge all categories
+    // --------------------------------------------------
+
+    const orders = results
+      .flat()
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
 
     // --------------------------------------------------
     // Pagination
@@ -179,6 +229,10 @@ export const getAvailableDeliveryOrders = async (req, res) => {
     const totalPages = Math.ceil(totalOrders / limit);
 
     const paginatedOrders = orders.slice(skip, skip + limit);
+
+    // --------------------------------------------------
+    // Response
+    // --------------------------------------------------
 
     return res.status(200).json({
       success: true,
@@ -203,15 +257,12 @@ export const getAvailableDeliveryOrders = async (req, res) => {
 // Accept Delivery Order
 // ======================================================
 //
-// Delivery partner accepts the WHOLE order.
+// Works with both:
 //
-// Seller confirmation is NOT required.
+// groceries -> Order
+// mobiles   -> MobileOrder
 //
-// The order remains:
-//
-// orderStatus = ordered
-//
-// Only deliveryPartner / acceptedAt are assigned.
+// The category is detected from the order collection.
 // ======================================================
 
 export const acceptDeliveryOrder = async (req, res) => {
@@ -255,104 +306,167 @@ export const acceptDeliveryOrder = async (req, res) => {
       });
     }
 
+    const assignedCategories = deliveryPartner.assignedCategories || [];
+
+    const assignedCities = deliveryPartner.assignedCities || [];
+
+    if (assignedCities.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: "No delivery city is assigned to you.",
+      });
+    }
+
     // --------------------------------------------------
-    // Atomically claim whole order
-    // --------------------------------------------------
-    //
-    // IMPORTANT:
-    //
-    // We require:
-    //
-    // parent order = ordered
-    //
-    // AND every item is currently unassigned.
-    //
-    // Item status does NOT matter.
-    //
-    // Therefore an item with:
-    //
-    // ordered
-    // confirmed
-    // notAvailable
-    //
-    // can still be part of the accepted order.
+    // Try Grocery Order
     // --------------------------------------------------
 
-    const result = await Order.updateOne(
-      {
-        _id: orderId,
+    if (assignedCategories.includes("groceries")) {
+      const result = await Order.updateOne(
+        {
+          _id: orderId,
 
-        orderStatus: {
-          $in: [ORDER_STATUS.ORDERED, ORDER_STATUS.CONFIRMED],
-        },
+          orderStatus: {
+            $in: [ORDER_STATUS.ORDERED, ORDER_STATUS.CONFIRMED],
+          },
 
-        items: {
-          $not: {
-            $elemMatch: {
-              deliveryPartner: {
-                $ne: null,
+          "shippingAddress.city._id": {
+            $in: assignedCities,
+          },
+
+          items: {
+            $not: {
+              $elemMatch: {
+                deliveryPartner: {
+                  $ne: null,
+                },
               },
             },
           },
         },
-      },
-      {
-        $set: {
-          "items.$[].deliveryPartner": deliveryPartner._id,
-          "items.$[].acceptedAt": new Date(),
+        {
+          $set: {
+            "items.$[].deliveryPartner": deliveryPartner._id,
+
+            "items.$[].acceptedAt": new Date(),
+          },
         },
-      },
-    );
+      );
 
-    // --------------------------------------------------
-    // Already accepted
-    // --------------------------------------------------
+      if (result.modifiedCount > 0) {
+        const updatedOrder = await Order.findById(orderId)
+          .populate("customer", "name email mobile")
+          .populate("items.seller", "shopName address")
+          .populate("items.product", "productName slug")
+          .lean();
 
-    if (result.modifiedCount === 0) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "This order is no longer available. It may have already been accepted by another delivery partner.",
-      });
+        if (!updatedOrder) {
+          return res.status(404).json({
+            success: false,
+            message: "Order not found after assignment.",
+          });
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: "Order accepted successfully.",
+          order: {
+            _id: updatedOrder._id,
+            orderNumber: updatedOrder.orderNumber,
+            category: "groceries",
+            orderStatus: updatedOrder.orderStatus,
+            customer: updatedOrder.customer,
+            shippingAddress: updatedOrder.shippingAddress,
+            deliveryContact: updatedOrder.deliveryContact,
+            items: updatedOrder.items,
+            pricing: updatedOrder.pricing,
+            paymentMethod: updatedOrder.paymentMethod,
+            paymentStatus: updatedOrder.paymentStatus,
+            createdAt: updatedOrder.createdAt,
+          },
+        });
+      }
     }
 
     // --------------------------------------------------
-    // Get updated order
+    // Try Mobile Order
     // --------------------------------------------------
 
-    const updatedOrder = await Order.findById(orderId)
-      .populate("customer", "name email mobile")
-      .populate("items.seller", "shopName address")
-      .populate("items.product", "productName slug")
-      .lean();
+    if (assignedCategories.includes("mobiles")) {
+      const result = await MobileOrder.updateOne(
+        {
+          _id: orderId,
 
-    if (!updatedOrder) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found after assignment.",
-      });
+          orderStatus: {
+            $in: [ORDER_STATUS.ORDERED, ORDER_STATUS.CONFIRMED],
+          },
+
+          "shippingAddress.city._id": {
+            $in: assignedCities,
+          },
+
+          items: {
+            $not: {
+              $elemMatch: {
+                deliveryPartner: {
+                  $ne: null,
+                },
+              },
+            },
+          },
+        },
+        {
+          $set: {
+            "items.$[].deliveryPartner": deliveryPartner._id,
+
+            "items.$[].acceptedAt": new Date(),
+          },
+        },
+      );
+
+      if (result.modifiedCount > 0) {
+        const updatedOrder = await MobileOrder.findById(orderId)
+          .populate("customer", "name email mobile")
+          .populate("items.seller", "shopName address")
+          .populate("items.product", "productName slug")
+          .lean();
+
+        if (!updatedOrder) {
+          return res.status(404).json({
+            success: false,
+            message: "Order not found after assignment.",
+          });
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: "Order accepted successfully.",
+          order: {
+            _id: updatedOrder._id,
+            orderNumber: updatedOrder.orderNumber,
+            category: "mobiles",
+            orderStatus: updatedOrder.orderStatus,
+            customer: updatedOrder.customer,
+            shippingAddress: updatedOrder.shippingAddress,
+            deliveryContact: updatedOrder.deliveryContact,
+            items: updatedOrder.items,
+            pricing: updatedOrder.pricing,
+            paymentMethod: updatedOrder.paymentMethod,
+            paymentStatus: updatedOrder.paymentStatus,
+            createdAt: updatedOrder.createdAt,
+          },
+        });
+      }
     }
 
     // --------------------------------------------------
-    // Response
+    // Not available
     // --------------------------------------------------
 
-    return res.status(200).json({
-      success: true,
-      message: "Order accepted successfully.",
-      order: {
-        _id: updatedOrder._id,
-        orderNumber: updatedOrder.orderNumber,
-        orderStatus: updatedOrder.orderStatus,
-        customer: updatedOrder.customer,
-        shippingAddress: updatedOrder.shippingAddress,
-        deliveryContact: updatedOrder.deliveryContact,
-        items: updatedOrder.items,
-        pricing: updatedOrder.pricing,
-        paymentMethod: updatedOrder.paymentMethod,
-        paymentStatus: updatedOrder.paymentStatus,
-        createdAt: updatedOrder.createdAt,
-      },
+    return res.status(409).json({
+      success: false,
+      message:
+        "This order is no longer available. It may have already been accepted by another delivery partner, or the order city/category is not assigned to you.",
     });
   } catch (error) {
     console.error("Accept Delivery Order Error:", error);
@@ -368,29 +482,10 @@ export const acceptDeliveryOrder = async (req, res) => {
 // Get My Delivery Orders
 // ======================================================
 //
-// Returns WHOLE orders accepted by this delivery partner.
+// Returns orders already accepted by this delivery partner.
 //
-// IMPORTANT:
-//
-// Seller changing:
-//
-// item.orderStatus
-//
-// from:
-//
-// ordered
-//
-// to:
-//
-// confirmed
-//
-// MUST NOT remove the order.
-//
-// The parent orderStatus remains:
-//
-// ordered
-//
-// until delivery partner starts delivery.
+// Supports:
+// groceries + mobiles
 // ======================================================
 
 export const getMyDeliveryOrders = async (req, res) => {
@@ -427,11 +522,19 @@ export const getMyDeliveryOrders = async (req, res) => {
 
     const { status = "pending" } = req.query;
 
+    if (status !== "pending" && status !== "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status filter. Use pending or completed.",
+      });
+    }
+
     // --------------------------------------------------
     // Pagination
     // --------------------------------------------------
 
     const page = Math.max(Number(req.query.page) || 1, 1);
+
     const limit = 10;
     const skip = (page - 1) * limit;
 
@@ -449,47 +552,11 @@ export const getMyDeliveryOrders = async (req, res) => {
           ORDER_STATUS.OUT_FOR_DELIVERY,
         ],
       };
-    } else if (status === "completed") {
+    } else {
       orderStatusQuery = {
         $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED],
       };
-    } else {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status filter. Use pending or completed.",
-      });
     }
-
-    // --------------------------------------------------
-    // Find orders assigned to this delivery partner
-    // --------------------------------------------------
-    //
-    // IMPORTANT:
-    //
-    // We ONLY check deliveryPartner here.
-    //
-    // We do NOT check item.orderStatus.
-    //
-    // This is intentional because an accepted order can be:
-    //
-    // Parent order:
-    // ordered
-    //
-    // Item:
-    // ordered
-    //
-    // and it MUST remain visible in My Orders.
-    //
-    // Later seller may change item status to:
-    //
-    // confirmed
-    //
-    // or:
-    //
-    // notAvailable
-    //
-    // and the same order must remain visible.
-    // --------------------------------------------------
 
     const orderQuery = {
       orderStatus: orderStatusQuery,
@@ -502,43 +569,70 @@ export const getMyDeliveryOrders = async (req, res) => {
     };
 
     // --------------------------------------------------
-    // Find orders
+    // Fetch Grocery Orders
     // --------------------------------------------------
 
-    const orders = await Order.find(orderQuery)
-      .populate("customer", "name email mobile")
-      .populate("items.seller", "shopName address")
-      .populate("items.product", "productName slug")
-      .sort({ createdAt: -1 })
-      .lean();
+    const promises = [];
+
+    if ((deliveryPartner.assignedCategories || []).includes("groceries")) {
+      promises.push(
+        Order.find(orderQuery)
+          .populate("customer", "name email mobile")
+          .populate("items.seller", "shopName address")
+          .populate("items.product", "productName slug")
+          .sort({ createdAt: -1 })
+          .lean()
+          .then((orders) =>
+            orders.map((order) => ({
+              ...order,
+              category: "groceries",
+            })),
+          ),
+      );
+    }
+
+    // --------------------------------------------------
+    // Fetch Mobile Orders
+    // --------------------------------------------------
+
+    if ((deliveryPartner.assignedCategories || []).includes("mobiles")) {
+      promises.push(
+        MobileOrder.find(orderQuery)
+          .populate("customer", "name email mobile")
+          .populate("items.seller", "shopName address")
+          .populate("items.product", "productName slug")
+          .sort({ createdAt: -1 })
+          .lean()
+          .then((orders) =>
+            orders.map((order) => ({
+              ...order,
+              category: "mobiles",
+            })),
+          ),
+      );
+    }
+
+    const results = await Promise.all(promises);
+
+    // --------------------------------------------------
+    // Merge orders
+    // --------------------------------------------------
+
+    const orders = results
+      .flat()
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
 
     // --------------------------------------------------
     // Build response
     // --------------------------------------------------
 
     const myOrders = orders.map((order) => {
-      // ------------------------------------------------
-      // Are ALL items resolved?
-      // ------------------------------------------------
-
       const allItemsResolved = areAllItemsResolved(order.items);
 
-      // ------------------------------------------------
-      // Does the order contain a confirmed item?
-      // ------------------------------------------------
-
       const orderHasDeliverableItems = hasDeliverableItems(order.items);
-
-      // ------------------------------------------------
-      // Can delivery start?
-      // ------------------------------------------------
-      //
-      // Parent must be CONFIRMED.
-      //
-      // ALL items must be resolved.
-      //
-      // At least one item must be CONFIRMED.
-      // ------------------------------------------------
 
       const canStartDelivery =
         order.orderStatus === ORDER_STATUS.CONFIRMED &&
@@ -548,6 +642,8 @@ export const getMyDeliveryOrders = async (req, res) => {
       return {
         _id: order._id,
         orderNumber: order.orderNumber,
+
+        category: order.category,
 
         orderStatus: order.orderStatus,
 
@@ -612,19 +708,11 @@ export const getMyDeliveryOrders = async (req, res) => {
 // Update Delivery Order Status
 // ======================================================
 //
-// Delivery partner updates WHOLE ORDER.
+// Supports:
+// groceries -> Order
+// mobiles   -> MobileOrder
 //
-// ordered
-//    ↓
-// outForDelivery
-//    ↓
-// delivered
-//
-// OR
-//
-// ordered / outForDelivery
-//    ↓
-// cancelled
+// Status flow remains unchanged.
 // ======================================================
 
 export const updateDeliveryOrderStatus = async (req, res) => {
@@ -670,7 +758,7 @@ export const updateDeliveryOrderStatus = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Validate requested status
+    // Validate status
     // --------------------------------------------------
 
     if (!DELIVERY_ALLOWED_STATUS.includes(status)) {
@@ -681,43 +769,63 @@ export const updateDeliveryOrderStatus = async (req, res) => {
     }
 
     // --------------------------------------------------
-    // Find order
+    // Find the order
+    //
+    // First check grocery if assigned.
+    // Then check mobile if assigned.
     // --------------------------------------------------
 
-    const order = await Order.findById(orderId);
+    let order = null;
+    let orderModel = null;
+    let category = null;
+
+    const assignedCategories = deliveryPartner.assignedCategories || [];
+
+    if (assignedCategories.includes("groceries")) {
+      order = await Order.findOne({
+        _id: orderId,
+        items: {
+          $elemMatch: {
+            deliveryPartner: deliveryPartner._id,
+          },
+        },
+      });
+
+      if (order) {
+        orderModel = Order;
+        category = "groceries";
+      }
+    }
+
+    if (!order && assignedCategories.includes("mobiles")) {
+      order = await MobileOrder.findOne({
+        _id: orderId,
+        items: {
+          $elemMatch: {
+            deliveryPartner: deliveryPartner._id,
+          },
+        },
+      });
+
+      if (order) {
+        orderModel = MobileOrder;
+        category = "mobiles";
+      }
+    }
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found.",
+        message: "Order not found or you are not assigned to this order.",
       });
     }
 
     // --------------------------------------------------
-    // Make sure delivery partner owns order
-    // --------------------------------------------------
-
-    const assignedToThisPartner = order.items.some(
-      (item) =>
-        item.deliveryPartner &&
-        item.deliveryPartner.toString() === deliveryPartner._id.toString(),
-    );
-
-    if (!assignedToThisPartner) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not assigned to this order.",
-      });
-    }
-
-    // ==================================================
     // START DELIVERY
-    // ==================================================
+    // --------------------------------------------------
 
     if (status === ORDER_STATUS.OUT_FOR_DELIVERY) {
-      // ------------------------------------------------
-      // Parent order must still be confirmed
-      // ------------------------------------------------
+      // Parent order must be confirmed
 
       if (order.orderStatus !== ORDER_STATUS.CONFIRMED) {
         return res.status(400).json({
@@ -726,16 +834,7 @@ export const updateDeliveryOrderStatus = async (req, res) => {
         });
       }
 
-      // ------------------------------------------------
-      // ALL items must be resolved
-      //
-      // accepted:
-      // confirmed
-      // notAvailable
-      // cancelled
-      //
-      // ordered is NOT allowed.
-      // ------------------------------------------------
+      // All items must be resolved
 
       const allItemsResolved = areAllItemsResolved(order.items);
 
@@ -747,9 +846,7 @@ export const updateDeliveryOrderStatus = async (req, res) => {
         });
       }
 
-      // ------------------------------------------------
-      // At least one confirmed item must exist
-      // ------------------------------------------------
+      // At least one confirmed item
 
       const orderHasDeliverableItems = hasDeliverableItems(order.items);
 
@@ -760,9 +857,7 @@ export const updateDeliveryOrderStatus = async (req, res) => {
         });
       }
 
-      // ------------------------------------------------
-      // Change parent order status ONLY here
-      // ------------------------------------------------
+      // Change parent order status
 
       order.orderStatus = ORDER_STATUS.OUT_FOR_DELIVERY;
 
@@ -773,19 +868,16 @@ export const updateDeliveryOrderStatus = async (req, res) => {
         message: "Order is now out for delivery.",
         orderId: order._id,
         orderNumber: order.orderNumber,
+        category,
         orderStatus: order.orderStatus,
       });
     }
 
-    // ==================================================
+    // --------------------------------------------------
     // DELIVERED
-    // ==================================================
+    // --------------------------------------------------
 
     if (status === ORDER_STATUS.DELIVERED) {
-      // ------------------------------------------------
-      // Order must be out for delivery
-      // ------------------------------------------------
-
       if (order.orderStatus !== ORDER_STATUS.OUT_FOR_DELIVERY) {
         return res.status(400).json({
           success: false,
@@ -793,29 +885,21 @@ export const updateDeliveryOrderStatus = async (req, res) => {
         });
       }
 
-      // ------------------------------------------------
       // Update parent order
-      // ------------------------------------------------
 
       order.orderStatus = ORDER_STATUS.DELIVERED;
 
-      // ------------------------------------------------
-      // Confirmed items become delivered.
-      //
-      // notAvailable items remain notAvailable.
-      // cancelled items remain cancelled.
-      // ------------------------------------------------
+      // Confirmed items become delivered
 
       for (const item of order.items) {
         if (item.orderStatus === ORDER_STATUS.CONFIRMED) {
           item.orderStatus = ORDER_STATUS.DELIVERED;
+
           item.deliveredAt = new Date();
         }
       }
 
-      // ------------------------------------------------
       // COD payment becomes paid
-      // ------------------------------------------------
 
       order.paymentStatus = PAYMENT_STATUS.PAID;
 
@@ -827,33 +911,28 @@ export const updateDeliveryOrderStatus = async (req, res) => {
 
       await createDeliveryEarning({
         deliveryPartnerId: deliveryPartner._id,
+
         orderId: order._id,
+
         completedAt: new Date(),
       });
-
-      // ------------------------------------------------
-      // Notification
-      // ------------------------------------------------
 
       return res.status(200).json({
         success: true,
         message: "Order delivered successfully.",
         orderId: order._id,
         orderNumber: order.orderNumber,
+        category,
         orderStatus: order.orderStatus,
         paymentStatus: order.paymentStatus,
       });
     }
 
-    // ==================================================
+    // --------------------------------------------------
     // CANCELLED
-    // ==================================================
+    // --------------------------------------------------
 
     if (status === ORDER_STATUS.CANCELLED) {
-      // ------------------------------------------------
-      // Cannot cancel completed order
-      // ------------------------------------------------
-
       if (
         order.orderStatus === ORDER_STATUS.DELIVERED ||
         order.orderStatus === ORDER_STATUS.CANCELLED
@@ -864,24 +943,11 @@ export const updateDeliveryOrderStatus = async (req, res) => {
         });
       }
 
-      // ------------------------------------------------
       // Cancel whole order
-      // ------------------------------------------------
 
       order.orderStatus = ORDER_STATUS.CANCELLED;
 
-      // ------------------------------------------------
-      // IMPORTANT:
-      //
       // Do NOT overwrite seller item statuses.
-      //
-      // Example:
-      //
-      // item A = confirmed
-      // item B = notAvailable
-      //
-      // Those remain as seller resolution statuses.
-      // ------------------------------------------------
 
       await order.save();
 
@@ -890,13 +956,14 @@ export const updateDeliveryOrderStatus = async (req, res) => {
         message: "Order cancelled successfully.",
         orderId: order._id,
         orderNumber: order.orderNumber,
+        category,
         orderStatus: order.orderStatus,
       });
     }
 
-    // ==================================================
+    // --------------------------------------------------
     // Unsupported
-    // ==================================================
+    // --------------------------------------------------
 
     return res.status(400).json({
       success: false,

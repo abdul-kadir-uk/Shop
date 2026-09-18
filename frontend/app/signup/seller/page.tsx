@@ -508,7 +508,7 @@ export default function SellerSignupPage() {
 
               <option value="groceries">Groceries</option>
 
-              <option value="mobile-repair">Mobile Repair</option>
+              <option value="mobiles">Mobiles</option>
             </select>
 
             {errors.category && (

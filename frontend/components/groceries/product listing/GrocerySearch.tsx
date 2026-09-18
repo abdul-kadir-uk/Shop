@@ -1,3 +1,4 @@
+// components/groceries/product listing/GocerySearch.tsx
 "use client";
 
 import { Search } from "lucide-react";

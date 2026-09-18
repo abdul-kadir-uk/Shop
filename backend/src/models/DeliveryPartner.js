@@ -1,4 +1,5 @@
 // models/DeliveryPartner.js
+
 import mongoose from "mongoose";
 
 const deliveryPartnerSchema = new mongoose.Schema(
@@ -52,13 +53,40 @@ const deliveryPartnerSchema = new mongoose.Schema(
       default: "pending",
     },
 
+    // ==================================================
     // Cities assigned by admin
+    // ==================================================
+
     assignedCities: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "City",
       },
     ],
+
+    // ==================================================
+    // Categories assigned by admin
+    // ==================================================
+    //
+    // A delivery partner can have:
+    //
+    // ["grocery"]
+    //
+    // OR
+    //
+    // ["grocery", "mobiles"]
+    //
+    // OR any other supported categories.
+    //
+    // No fixed number of categories.
+    // ==================================================
+
+    assignedCategories: {
+      type: [String],
+      enum: ["groceries", "mobiles"],
+      default: [],
+    },
+
     earningPerDelivery: {
       type: Number,
       default: 10,

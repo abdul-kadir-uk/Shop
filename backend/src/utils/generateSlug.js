@@ -1,3 +1,4 @@
+// utils/generateSlug.js
 export const generateSlug = (text) => {
   return (
     text

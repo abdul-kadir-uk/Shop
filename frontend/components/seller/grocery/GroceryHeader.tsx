@@ -1,3 +1,4 @@
+// components/seller/GroceryHeader.tsx
 interface Props {
   onMenuClick: () => void;
 }

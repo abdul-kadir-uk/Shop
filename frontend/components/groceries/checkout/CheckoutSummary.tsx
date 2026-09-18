@@ -1,3 +1,4 @@
+// components/groceries/checkout/CheckoutSummary.tsx
 "use client";
 
 type CheckoutItem = {

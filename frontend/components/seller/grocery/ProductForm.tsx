@@ -1,4 +1,4 @@
-// components/seller/ProductForm.tsx
+// components/seller/grocery/ProductForm.tsx
 "use client";
 
 import { useState } from "react";

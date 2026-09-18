@@ -1,3 +1,4 @@
+// utils/imageUploadService.js
 import { uploadToS3, deleteFromS3 } from "./s3.js";
 
 /**

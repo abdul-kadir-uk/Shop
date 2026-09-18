@@ -438,7 +438,7 @@ export const sellerSignup = async (req, res) => {
     // Validate Category
     // ---------------------------------
 
-    if (!["groceries", "mobile-repair"].includes(category)) {
+    if (!["groceries", "mobiles"].includes(category)) {
       return res.status(400).json({
         success: false,
         message: "Invalid seller category",

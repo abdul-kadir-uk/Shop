@@ -135,7 +135,9 @@ export const getSellerProfile = async (req, res) => {
 
     const seller = await Seller.findOne({
       userId: req.user._id,
-    }).lean();
+    })
+      .populate("city", "_id name state")
+      .lean();
 
     if (!seller) {
       return res.status(404).json({

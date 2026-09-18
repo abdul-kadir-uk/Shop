@@ -117,7 +117,10 @@ aliauf.com/seller/dashboard.
    item.deliveryPartner here.
 ========================================================== */
 
-export const notifyDeliveryPartnersNewOrder = async (order) => {
+export const notifyDeliveryPartnersNewOrder = async (
+  order,
+  category = "groceries",
+) => {
   try {
     const cityId = order.shippingAddress?.city?._id;
 
@@ -128,6 +131,7 @@ export const notifyDeliveryPartnersNewOrder = async (order) => {
     const deliveryPartners = await DeliveryPartner.find({
       approvalStatus: "approved",
       assignedCities: cityId,
+      assignedCategories: category,
     }).populate("userId", "name telegramChatId");
 
     if (deliveryPartners.length === 0) {
