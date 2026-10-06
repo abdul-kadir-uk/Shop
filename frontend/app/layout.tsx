@@ -4,7 +4,7 @@ import Providers from "@/providers";
 
 export const metadata = {
   title: "Aliauf.com",
-  description: "Groceries & Mobile Repair",
+  description: "Groceries & Brand New Mobiles at the lowest prices",
 };
 
 export default function RootLayout({

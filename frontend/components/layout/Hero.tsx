@@ -7,7 +7,7 @@ export default function Hero() {
         </h1>
 
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Shop groceries at best prices on the comfort of your home.
+          Shop groceries and Mobiles at best prices on the comfort of your home.
         </p>
       </div>
     </section>
