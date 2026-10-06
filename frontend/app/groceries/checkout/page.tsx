@@ -165,6 +165,14 @@ function GroceryCheckoutContent() {
 
         setData(response.data);
 
+        const kashipur = response.data.cities.find(
+          (city: City) => city.name.trim().toLowerCase() === "kashipur",
+        );
+
+        if (kashipur) {
+          setSelectedCity(kashipur._id);
+        }
+
         // --------------------------------------------------
         // Use Saved Customer Address
         // --------------------------------------------------
@@ -240,6 +248,16 @@ function GroceryCheckoutContent() {
       total,
     };
   }, [data, selectedCity]);
+
+  const groceryCities = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    return data.cities.filter(
+      (city) => city.name.trim().toLowerCase() === "kashipur",
+    );
+  }, [data]);
 
   // ======================================================
   // City Change
@@ -474,7 +492,7 @@ function GroceryCheckoutContent() {
           <CheckoutCustomer customer={data.customer} />
 
           <CheckoutAddress
-            cities={data.cities}
+            cities={groceryCities}
             selectedCity={selectedCity}
             address={address}
             alternateMobile={alternateMobile}

@@ -5,6 +5,9 @@ import { useState } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+
 export default function CustomerSignupPage() {
   const router = useRouter();
 
@@ -234,75 +237,84 @@ export default function CustomerSignupPage() {
 
   if (otpSent) {
     return (
-      <div className="max-w-md mx-auto py-12 px-4">
-        <div className="bg-white border rounded-2xl shadow-sm p-6">
-          <h1 className="text-3xl font-bold text-center mb-2">
-            Verify Mobile Number
-          </h1>
+      <div className="min-h-screen flex flex-col">
+        <Header />
 
-          <p className="text-gray-500 text-center mb-6">
-            We sent a 6-digit OTP to
-          </p>
+        <main className="flex-1">
+          <div className="max-w-md mx-auto py-12 px-4">
+            <div className="bg-white border rounded-2xl shadow-sm p-6">
+              <h1 className="text-3xl font-bold text-center mb-2">
+                Verify Mobile Number
+              </h1>
 
-          <p className="text-center font-semibold mb-6">+91 {formData.phone}</p>
-
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="Enter 6-digit OTP"
-              value={otp}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, "");
-
-                setOtp(value);
-                setError("");
-              }}
-              className="w-full border rounded-lg p-3 text-center text-xl tracking-[0.5em] outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-
-            <button
-              type="submit"
-              disabled={otpLoading}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold py-3 rounded-lg transition cursor-pointer"
-            >
-              {otpLoading ? "Verifying..." : "Verify & Create Account"}
-            </button>
-          </form>
-
-          <div className="text-center mt-5">
-            {resendCooldown > 0 ? (
-              <p className="text-gray-500 text-sm">
-                Resend OTP in {resendCooldown}s
+              <p className="text-gray-500 text-center mb-6">
+                We sent a 6-digit OTP to
               </p>
-            ) : (
+
+              <p className="text-center font-semibold mb-6">
+                +91 {formData.phone}
+              </p>
+
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "");
+                    setOtp(value);
+                    setError("");
+                  }}
+                  className="w-full border rounded-lg p-3 text-center text-xl tracking-[0.5em] outline-none focus:ring-2 focus:ring-green-500"
+                  required
+                />
+
+                {error && <p className="text-red-500 text-sm">{error}</p>}
+
+                <button
+                  type="submit"
+                  disabled={otpLoading}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold py-3 rounded-lg transition cursor-pointer"
+                >
+                  {otpLoading ? "Verifying..." : "Verify & Create Account"}
+                </button>
+              </form>
+
+              <div className="text-center mt-5">
+                {resendCooldown > 0 ? (
+                  <p className="text-gray-500 text-sm">
+                    Resend OTP in {resendCooldown}s
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={otpLoading}
+                    className="text-green-600 font-medium hover:text-green-700 cursor-pointer"
+                  >
+                    Resend OTP
+                  </button>
+                )}
+              </div>
+
               <button
                 type="button"
-                onClick={handleResendOtp}
-                disabled={otpLoading}
-                className="text-green-600 font-medium hover:text-green-700 cursor-pointer"
+                onClick={() => {
+                  setOtpSent(false);
+                  setOtp("");
+                  setError("");
+                }}
+                className="w-full mt-4 text-gray-500 hover:text-gray-700 text-sm cursor-pointer"
               >
-                Resend OTP
+                Change mobile number
               </button>
-            )}
+            </div>
           </div>
+        </main>
 
-          <button
-            type="button"
-            onClick={() => {
-              setOtpSent(false);
-              setOtp("");
-              setError("");
-            }}
-            className="w-full mt-4 text-gray-500 hover:text-gray-700 text-sm cursor-pointer"
-          >
-            Change mobile number
-          </button>
-        </div>
+        <Footer />
       </div>
     );
   }
@@ -312,168 +324,178 @@ export default function CustomerSignupPage() {
   // ==================================================
 
   return (
-    <div className="max-w-md md:max-w-2xl lg:max-w-3xl mx-auto py-12 px-4">
-      <div className="bg-white border rounded-2xl shadow-sm p-6">
-        <h1 className="text-3xl font-bold text-center mb-2">
-          Customer Sign Up
-        </h1>
+    <div className="min-h-screen flex flex-col">
+      <Header />
 
-        <p className="text-gray-500 text-center mb-6">
-          Create your customer account
-        </p>
+      <main className="flex-1">
+        <div className="max-w-md md:max-w-2xl lg:max-w-3xl mx-auto py-12 px-4">
+          <div className="bg-white border rounded-2xl shadow-sm p-6">
+            <h1 className="text-3xl font-bold text-center mb-2">
+              Customer Sign Up
+            </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Full Name */}
+            <p className="text-gray-500 text-center mb-6">
+              Create your customer account
+            </p>
 
-          <input
-            type="text"
-            name="fullName"
-            placeholder="Full Name"
-            value={formData.fullName}
-            onChange={handleChange}
-            className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
-            required
-          />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Full Name */}
 
-          {/* Email */}
+              <input
+                type="text"
+                name="fullName"
+                placeholder="Full Name"
+                value={formData.fullName}
+                onChange={handleChange}
+                className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
 
-          <input
-            type="email"
-            name="email"
-            placeholder="Email Address"
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
-            required
-          />
+              {/* Email */}
 
-          {/* Phone */}
+              <input
+                type="email"
+                name="email"
+                placeholder="Email Address"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
 
-          <input
-            type="tel"
-            name="phone"
-            placeholder="Phone Number"
-            value={formData.phone}
-            onChange={(e) => {
-              const value = e.target.value.replace(/\D/g, "");
+              {/* Phone */}
 
-              if (value.length <= 10) {
-                setFormData({
-                  ...formData,
-                  phone: value,
-                });
-              }
+              <input
+                type="tel"
+                name="phone"
+                placeholder="Phone Number"
+                value={formData.phone}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
 
-              setError("");
-            }}
-            className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
-            maxLength={10}
-            required
-          />
+                  if (value.length <= 10) {
+                    setFormData({
+                      ...formData,
+                      phone: value,
+                    });
+                  }
 
-          {/* Password */}
+                  setError("");
+                }}
+                className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
+                maxLength={10}
+                required
+              />
 
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full border rounded-lg p-3 pr-16 outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
+              {/* Password */}
 
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-green-600"
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full border rounded-lg p-3 pr-16 outline-none focus:ring-2 focus:ring-green-500"
+                  required
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-green-600"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+
+              {/* Confirm Password */}
+
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  placeholder="Confirm Password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full border rounded-lg p-3 pr-16 outline-none focus:ring-2 focus:ring-green-500"
+                  required
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-green-600"
+                >
+                  {showConfirmPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+
+              {/* Security Question */}
+
+              <select
+                name="securityQuestion"
+                value={formData.securityQuestion}
+                onChange={handleChange}
+                className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
+                required
+              >
+                <option value="">Select Security Question</option>
+
+                <option value="pet">What was your first pet's name?</option>
+
+                <option value="school">
+                  What was your primary school name?
+                </option>
+
+                <option value="city">In which city were you born?</option>
+
+                <option value="teacher">
+                  What was your favorite teacher's name?
+                </option>
+              </select>
+
+              {/* Security Answer */}
+
+              <input
+                type="text"
+                name="securityAnswer"
+                placeholder="Security Answer"
+                value={formData.securityAnswer}
+                onChange={handleChange}
+                className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
+
+              {/* Address */}
+
+              <textarea
+                name="address"
+                placeholder="Full Address"
+                value={formData.address}
+                onChange={handleChange}
+                rows={3}
+                className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                required
+              />
+
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+
+              {/* Submit */}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold py-3 rounded-lg transition cursor-pointer"
+              >
+                {loading ? "Sending OTP..." : "Send OTP"}
+              </button>
+            </form>
           </div>
+        </div>
+      </main>
 
-          {/* Confirm Password */}
-
-          <div className="relative">
-            <input
-              type={showConfirmPassword ? "text" : "password"}
-              name="confirmPassword"
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="w-full border rounded-lg p-3 pr-16 outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-green-600"
-            >
-              {showConfirmPassword ? "Hide" : "Show"}
-            </button>
-          </div>
-
-          {/* Security Question */}
-
-          <select
-            name="securityQuestion"
-            value={formData.securityQuestion}
-            onChange={handleChange}
-            className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
-            required
-          >
-            <option value="">Select Security Question</option>
-
-            <option value="pet">What was your first pet's name?</option>
-
-            <option value="school">What was your primary school name?</option>
-
-            <option value="city">In which city were you born?</option>
-
-            <option value="teacher">
-              What was your favorite teacher's name?
-            </option>
-          </select>
-
-          {/* Security Answer */}
-
-          <input
-            type="text"
-            name="securityAnswer"
-            placeholder="Security Answer"
-            value={formData.securityAnswer}
-            onChange={handleChange}
-            className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500"
-            required
-          />
-
-          {/* Address */}
-
-          <textarea
-            name="address"
-            placeholder="Full Address"
-            value={formData.address}
-            onChange={handleChange}
-            rows={3}
-            className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-green-500 resize-none"
-            required
-          />
-
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-
-          {/* Submit */}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold py-3 rounded-lg transition cursor-pointer"
-          >
-            {loading ? "Sending OTP..." : "Send OTP"}
-          </button>
-        </form>
-      </div>
+      <Footer />
     </div>
   );
 }

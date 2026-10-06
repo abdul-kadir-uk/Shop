@@ -434,9 +434,7 @@ export default function ProductInfo({
 
           {selectedColor?.price !== null &&
             selectedColor?.price !== undefined && (
-              <p className="mt-3 text-xs text-gray-500">
-                This color has a different price.
-              </p>
+              <p className="mt-3 text-xs text-gray-500"></p>
             )}
         </div>
       )}

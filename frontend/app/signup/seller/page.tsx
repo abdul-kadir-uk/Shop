@@ -1,8 +1,11 @@
+// app/signup/seller/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
 
 interface City {
   _id: string;
@@ -305,83 +308,89 @@ export default function SellerSignupPage() {
 
   if (otpSent) {
     return (
-      <div className="min-h-screen bg-gray-100 py-10 px-4">
-        <div className="mx-auto max-w-md rounded-2xl bg-white p-8 shadow-lg">
-          <h1 className="mb-2 text-center text-3xl font-bold">
-            Verify Mobile Number
-          </h1>
+      <div className="min-h-screen flex flex-col">
+        <Header />
 
-          <p className="mb-2 text-center text-gray-500">
-            We sent a 6-digit OTP to
-          </p>
+        <main className="flex-1 bg-gray-100 py-10 px-4">
+          <div className="mx-auto max-w-md rounded-2xl bg-white p-8 shadow-lg">
+            <h1 className="mb-2 text-center text-3xl font-bold">
+              Verify Mobile Number
+            </h1>
 
-          <p className="mb-6 text-center font-semibold">
-            +91 {formData.mobile}
-          </p>
+            <p className="mb-2 text-center text-gray-500">
+              We sent a 6-digit OTP to
+            </p>
 
-          <form onSubmit={handleVerifyOtp} className="space-y-5">
-            <div>
-              <label className="mb-1 block font-medium">Enter OTP</label>
+            <p className="mb-6 text-center font-semibold">
+              +91 {formData.mobile}
+            </p>
 
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, "");
+            <form onSubmit={handleVerifyOtp} className="space-y-5">
+              <div>
+                <label className="mb-1 block font-medium">Enter OTP</label>
 
-                  setOtp(value);
-                  setServerError("");
-                }}
-                placeholder="Enter 6-digit OTP"
-                className="w-full rounded-lg border px-4 py-3 text-center text-xl tracking-[0.5em] focus:border-green-500 focus:outline-none"
-                required
-              />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "");
+
+                    setOtp(value);
+                    setServerError("");
+                  }}
+                  placeholder="Enter 6-digit OTP"
+                  className="w-full rounded-lg border px-4 py-3 text-center text-xl tracking-[0.5em] focus:border-green-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {serverError && (
+                <p className="text-sm text-red-500">{serverError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={otpLoading}
+                className="w-full rounded-lg bg-green-600 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+              >
+                {otpLoading ? "Verifying..." : "Verify & Create Seller Account"}
+              </button>
+            </form>
+
+            <div className="mt-5 text-center">
+              {resendCooldown > 0 ? (
+                <p className="text-sm text-gray-500">
+                  Resend OTP in {resendCooldown}s
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={otpLoading}
+                  className="font-medium text-green-600 hover:text-green-700"
+                >
+                  Resend OTP
+                </button>
+              )}
             </div>
 
-            {serverError && (
-              <p className="text-sm text-red-500">{serverError}</p>
-            )}
-
             <button
-              type="submit"
-              disabled={otpLoading}
-              className="w-full rounded-lg bg-green-600 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+              type="button"
+              onClick={() => {
+                setOtpSent(false);
+                setOtp("");
+                setServerError("");
+              }}
+              className="mt-4 w-full text-sm text-gray-500 hover:text-gray-700"
             >
-              {otpLoading ? "Verifying..." : "Verify & Create Seller Account"}
+              Change mobile number
             </button>
-          </form>
-
-          <div className="mt-5 text-center">
-            {resendCooldown > 0 ? (
-              <p className="text-sm text-gray-500">
-                Resend OTP in {resendCooldown}s
-              </p>
-            ) : (
-              <button
-                type="button"
-                onClick={handleResendOtp}
-                disabled={otpLoading}
-                className="font-medium text-green-600 hover:text-green-700"
-              >
-                Resend OTP
-              </button>
-            )}
           </div>
+        </main>
 
-          <button
-            type="button"
-            onClick={() => {
-              setOtpSent(false);
-              setOtp("");
-              setServerError("");
-            }}
-            className="mt-4 w-full text-sm text-gray-500 hover:text-gray-700"
-          >
-            Change mobile number
-          </button>
-        </div>
+        <Footer />
       </div>
     );
   }
@@ -391,332 +400,348 @@ export default function SellerSignupPage() {
   // ==================================================
 
   return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4">
-      <div className="mx-auto max-w-2xl rounded-2xl bg-white p-8 shadow-lg">
-        <h1 className="mb-2 text-center text-3xl font-bold">
-          Seller Registration
-        </h1>
+    <div className="min-h-screen flex flex-col">
+      <Header />
 
-        <p className="mb-8 text-center text-gray-500">
-          Create your seller account to start selling.
-        </p>
+      <main className="flex-1 bg-gray-100 py-10 px-4">
+        <div className="mx-auto max-w-2xl rounded-2xl bg-white p-8 shadow-lg">
+          <h1 className="mb-2 text-center text-3xl font-bold">
+            Seller Registration
+          </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Name */}
+          <p className="mb-8 text-center text-gray-500">
+            Create your seller account to start selling.
+          </p>
 
-          <div>
-            <label className="mb-1 block font-medium">Full Name *</label>
-
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Enter your name"
-              className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-            />
-
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-500">{errors.name}</p>
-            )}
-          </div>
-
-          {/* Email + Mobile */}
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block font-medium">Email *</label>
-
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Enter email"
-                className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-              />
-
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-500">{errors.email}</p>
-              )}
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Name */}
 
             <div>
-              <label className="mb-1 block font-medium">Mobile Number *</label>
-
-              <input
-                type="tel"
-                name="mobile"
-                value={formData.mobile}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, "");
-
-                  if (value.length <= 10) {
-                    setFormData((prev) => ({
-                      ...prev,
-                      mobile: value,
-                    }));
-                  }
-
-                  setErrors((prev) => ({
-                    ...prev,
-                    mobile: "",
-                  }));
-                }}
-                maxLength={10}
-                placeholder="Enter mobile number"
-                className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-              />
-
-              {errors.mobile && (
-                <p className="mt-1 text-sm text-red-500">{errors.mobile}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Shop Name */}
-
-          <div>
-            <label className="mb-1 block font-medium">Shop Name *</label>
-
-            <input
-              type="text"
-              name="shopName"
-              value={formData.shopName}
-              onChange={handleChange}
-              placeholder="Enter shop name"
-              className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-            />
-
-            {errors.shopName && (
-              <p className="mt-1 text-sm text-red-500">{errors.shopName}</p>
-            )}
-          </div>
-
-          {/* Category */}
-
-          <div>
-            <label className="mb-1 block font-medium">Category *</label>
-
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-            >
-              <option value="">Select Category</option>
-
-              <option value="groceries">Groceries</option>
-
-              <option value="mobiles">Mobiles</option>
-            </select>
-
-            {errors.category && (
-              <p className="mt-1 text-sm text-red-500">{errors.category}</p>
-            )}
-          </div>
-
-          {/* GSTIN + City */}
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block font-medium">GSTIN Number *</label>
+              <label className="mb-1 block font-medium">Full Name *</label>
 
               <input
                 type="text"
-                name="gstinNumber"
-                value={formData.gstinNumber}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    gstinNumber: e.target.value.toUpperCase(),
-                  }))
-                }
-                maxLength={15}
-                placeholder="Enter GSTIN number"
-                className="w-full rounded-lg border px-4 py-3 uppercase focus:border-green-500 focus:outline-none"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter your name"
+                className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
               />
 
-              {errors.gstinNumber && (
-                <p className="mt-1 text-sm text-red-500">
-                  {errors.gstinNumber}
-                </p>
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-500">{errors.name}</p>
               )}
             </div>
 
-            <div>
-              <label className="mb-1 block font-medium">City *</label>
+            {/* Email + Mobile */}
 
-              <select
-                name="cityId"
-                value={formData.cityId}
-                onChange={handleChange}
-                disabled={isLoadingCities}
-                className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none disabled:bg-gray-100"
-              >
-                <option value="">
-                  {isLoadingCities ? "Loading cities..." : "Select City"}
-                </option>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block font-medium">Email *</label>
 
-                {cities.map((city) => (
-                  <option key={city._id} value={city._id}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
-
-              {errors.cityId && (
-                <p className="mt-1 text-sm text-red-500">{errors.cityId}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Passwords */}
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block font-medium">Password *</label>
-
-              <div className="relative">
                 <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={formData.password}
+                  type="email"
+                  name="email"
+                  value={formData.email}
                   onChange={handleChange}
-                  placeholder="Enter password"
-                  className="w-full rounded-lg border px-4 py-3 pr-16 focus:border-green-500 focus:outline-none"
+                  placeholder="Enter email"
+                  className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
                 />
 
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium"
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+                )}
               </div>
 
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-500">{errors.password}</p>
+              <div>
+                <label className="mb-1 block font-medium">
+                  Mobile Number *
+                </label>
+
+                <input
+                  type="tel"
+                  name="mobile"
+                  value={formData.mobile}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "");
+
+                    if (value.length <= 10) {
+                      setFormData((prev) => ({
+                        ...prev,
+                        mobile: value,
+                      }));
+                    }
+
+                    setErrors((prev) => ({
+                      ...prev,
+                      mobile: "",
+                    }));
+                  }}
+                  maxLength={10}
+                  placeholder="Enter mobile number"
+                  className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
+                />
+
+                {errors.mobile && (
+                  <p className="mt-1 text-sm text-red-500">{errors.mobile}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Shop Name */}
+
+            <div>
+              <label className="mb-1 block font-medium">Shop Name *</label>
+
+              <input
+                type="text"
+                name="shopName"
+                value={formData.shopName}
+                onChange={handleChange}
+                placeholder="Enter shop name"
+                className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
+              />
+
+              {errors.shopName && (
+                <p className="mt-1 text-sm text-red-500">{errors.shopName}</p>
               )}
             </div>
+
+            {/* Category */}
+
+            <div>
+              <label className="mb-1 block font-medium">Category *</label>
+
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
+              >
+                <option value="">Select Category</option>
+
+                <option value="groceries">Groceries</option>
+
+                <option value="mobiles">Mobiles</option>
+              </select>
+
+              {errors.category && (
+                <p className="mt-1 text-sm text-red-500">{errors.category}</p>
+              )}
+            </div>
+
+            {/* GSTIN + City */}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block font-medium">GSTIN Number *</label>
+
+                <input
+                  type="text"
+                  name="gstinNumber"
+                  value={formData.gstinNumber}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      gstinNumber: e.target.value.toUpperCase(),
+                    }))
+                  }
+                  maxLength={15}
+                  placeholder="Enter GSTIN number"
+                  className="w-full rounded-lg border px-4 py-3 uppercase focus:border-green-500 focus:outline-none"
+                />
+
+                {errors.gstinNumber && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.gstinNumber}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1 block font-medium">City *</label>
+
+                <select
+                  name="cityId"
+                  value={formData.cityId}
+                  onChange={handleChange}
+                  disabled={isLoadingCities}
+                  className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none disabled:bg-gray-100"
+                >
+                  <option value="">
+                    {isLoadingCities ? "Loading cities..." : "Select City"}
+                  </option>
+
+                  {cities.map((city) => (
+                    <option key={city._id} value={city._id}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
+
+                {errors.cityId && (
+                  <p className="mt-1 text-sm text-red-500">{errors.cityId}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Passwords */}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block font-medium">Password *</label>
+
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="Enter password"
+                    className="w-full rounded-lg border px-4 py-3 pr-16 focus:border-green-500 focus:outline-none"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-500">{errors.password}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1 block font-medium">
+                  Confirm Password *
+                </label>
+
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    placeholder="Confirm password"
+                    className="w-full rounded-lg border px-4 py-3 pr-16 focus:border-green-500 focus:outline-none"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium"
+                  >
+                    {showConfirmPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.confirmPassword}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Security Question */}
 
             <div>
               <label className="mb-1 block font-medium">
-                Confirm Password *
+                Security Question *
               </label>
 
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Confirm password"
-                  className="w-full rounded-lg border px-4 py-3 pr-16 focus:border-green-500 focus:outline-none"
-                />
+              <select
+                name="securityQuestion"
+                value={formData.securityQuestion}
+                onChange={handleChange}
+                className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
+              >
+                <option value="">Select a question</option>
 
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium"
-                >
-                  {showConfirmPassword ? "Hide" : "Show"}
-                </button>
-              </div>
+                <option value="pet">
+                  What was the name of your first pet?
+                </option>
 
-              {errors.confirmPassword && (
+                <option value="school">
+                  What was the name of your first school?
+                </option>
+
+                <option value="city">In which city were you born?</option>
+
+                <option value="mother">
+                  What is your mother's maiden name?
+                </option>
+              </select>
+
+              {errors.securityQuestion && (
                 <p className="mt-1 text-sm text-red-500">
-                  {errors.confirmPassword}
+                  {errors.securityQuestion}
                 </p>
               )}
             </div>
-          </div>
 
-          {/* Security Question */}
+            {/* Security Answer */}
 
-          <div>
-            <label className="mb-1 block font-medium">
-              Security Question *
-            </label>
+            <div>
+              <label className="mb-1 block font-medium">
+                Security Answer *
+              </label>
 
-            <select
-              name="securityQuestion"
-              value={formData.securityQuestion}
-              onChange={handleChange}
-              className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
+              <input
+                type="text"
+                name="securityAnswer"
+                value={formData.securityAnswer}
+                onChange={handleChange}
+                placeholder="Enter your answer"
+                className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
+              />
+
+              {errors.securityAnswer && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.securityAnswer}
+                </p>
+              )}
+            </div>
+
+            {/* Address */}
+
+            <div>
+              <label className="mb-1 block font-medium">Address *</label>
+
+              <textarea
+                rows={4}
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                placeholder="Enter your address"
+                className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
+              />
+
+              {errors.address && (
+                <p className="mt-1 text-sm text-red-500">{errors.address}</p>
+              )}
+            </div>
+
+            {serverError && (
+              <p className="text-sm text-red-500">{serverError}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-lg bg-green-600 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
-              <option value="">Select a question</option>
+              {isSubmitting ? "Sending OTP..." : "Send OTP"}
+            </button>
+          </form>
+        </div>
+      </main>
 
-              <option value="pet">What was the name of your first pet?</option>
-
-              <option value="school">
-                What was the name of your first school?
-              </option>
-
-              <option value="city">In which city were you born?</option>
-
-              <option value="mother">What is your mother's maiden name?</option>
-            </select>
-
-            {errors.securityQuestion && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.securityQuestion}
-              </p>
-            )}
-          </div>
-
-          {/* Security Answer */}
-
-          <div>
-            <label className="mb-1 block font-medium">Security Answer *</label>
-
-            <input
-              type="text"
-              name="securityAnswer"
-              value={formData.securityAnswer}
-              onChange={handleChange}
-              placeholder="Enter your answer"
-              className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-            />
-
-            {errors.securityAnswer && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.securityAnswer}
-              </p>
-            )}
-          </div>
-
-          {/* Address */}
-
-          <div>
-            <label className="mb-1 block font-medium">Address *</label>
-
-            <textarea
-              rows={4}
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="Enter your address"
-              className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-            />
-
-            {errors.address && (
-              <p className="mt-1 text-sm text-red-500">{errors.address}</p>
-            )}
-          </div>
-
-          {serverError && <p className="text-sm text-red-500">{serverError}</p>}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-lg bg-green-600 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-          >
-            {isSubmitting ? "Sending OTP..." : "Send OTP"}
-          </button>
-        </form>
-      </div>
+      <Footer />
     </div>
   );
 }

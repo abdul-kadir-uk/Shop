@@ -5,6 +5,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
 
 interface City {
   _id: string;
@@ -232,188 +234,194 @@ export default function DeliverySignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4">
-      <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-center mb-2">
-          Delivery Partner Registration
-        </h1>
+    <div className="min-h-screen flex flex-col">
+      <Header />
 
-        <p className="text-center text-gray-500 mb-8">
-          Join our delivery network and start earning.
-        </p>
+      <main className="flex-1 bg-gray-100 py-10 px-4">
+        <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-lg p-8">
+          <h1 className="text-3xl font-bold text-center mb-2">
+            Delivery Partner Registration
+          </h1>
 
-        {error && (
-          <div className="mb-5 rounded-lg bg-red-100 border border-red-300 text-red-700 p-3">
-            {error}
-          </div>
-        )}
+          <p className="text-center text-gray-500 mb-8">
+            Join our delivery network and start earning.
+          </p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <input
-            type="text"
-            name="name"
-            placeholder="Full Name"
-            value={formData.name}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
+          {error && (
+            <div className="mb-5 rounded-lg bg-red-100 border border-red-300 text-red-700 p-3">
+              {error}
+            </div>
+          )}
 
-          <input
-            type="email"
-            name="email"
-            placeholder="Email Address"
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-
-          <input
-            type="tel"
-            name="mobileNumber"
-            placeholder="Mobile Number"
-            value={formData.mobileNumber}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-
-          <div className="relative">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              placeholder="Password"
-              value={formData.password}
+              type="text"
+              name="name"
+              placeholder="Full Name"
+              value={formData.name}
               onChange={handleChange}
-              className="w-full border rounded-xl p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? "hide" : "show"}
-            </button>
-          </div>
 
-          <div className="relative">
             <input
-              type={showConfirmPassword ? "text" : "password"}
-              name="confirmPassword"
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
+              type="email"
+              name="email"
+              placeholder="Email Address"
+              value={formData.email}
               onChange={handleChange}
-              className="w-full border rounded-xl p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-              aria-label={
-                showConfirmPassword ? "Hide password" : "Show password"
-              }
-            >
-              {showConfirmPassword ? "hide" : "show"}
-            </button>
-          </div>
-
-          <input
-            type="tel"
-            name="aadhaarNumber"
-            placeholder="Aadhaar Number"
-            value={formData.aadhaarNumber}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-
-          <div>
-            <label className="block mb-2 font-medium">
-              Upload Aadhaar Card
-            </label>
 
             <input
-              type="file"
-              accept=".jpg,.jpeg,.png,.pdf"
-              onChange={handleAadhaarFileChange}
-              className="w-full border rounded-xl p-3"
+              type="tel"
+              name="mobileNumber"
+              placeholder="Mobile Number"
+              value={formData.mobileNumber}
+              onChange={handleChange}
+              className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
 
-            {aadhaarFile && (
-              <p className="mt-2 text-sm text-gray-500">
-                Selected: {aadhaarFile.name}
-              </p>
-            )}
-          </div>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full border rounded-xl p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "hide" : "show"}
+              </button>
+            </div>
 
-          {/* City */}
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="w-full border rounded-xl p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                aria-label={
+                  showConfirmPassword ? "Hide password" : "Show password"
+                }
+              >
+                {showConfirmPassword ? "hide" : "show"}
+              </button>
+            </div>
 
-          <div>
-            <label className="block mb-2 font-medium">Select City</label>
+            <input
+              type="tel"
+              name="aadhaarNumber"
+              placeholder="Aadhaar Number"
+              value={formData.aadhaarNumber}
+              onChange={handleChange}
+              className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+
+            <div>
+              <label className="block mb-2 font-medium">
+                Upload Aadhaar Card
+              </label>
+
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.pdf"
+                onChange={handleAadhaarFileChange}
+                className="w-full border rounded-xl p-3"
+              />
+
+              {aadhaarFile && (
+                <p className="mt-2 text-sm text-gray-500">
+                  Selected: {aadhaarFile.name}
+                </p>
+              )}
+            </div>
+
+            {/* City */}
+
+            <div>
+              <label className="block mb-2 font-medium">Select City</label>
+
+              <select
+                name="cityId"
+                value={formData.cityId}
+                onChange={handleChange}
+                disabled={isLoadingCities}
+                className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+              >
+                <option value="">
+                  {isLoadingCities ? "Loading cities..." : "Select City"}
+                </option>
+
+                {cities.map((city) => (
+                  <option key={city._id} value={city._id}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <select
-              name="cityId"
-              value={formData.cityId}
+              name="securityQuestion"
+              value={formData.securityQuestion}
               onChange={handleChange}
-              disabled={isLoadingCities}
-              className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+              className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              <option value="">
-                {isLoadingCities ? "Loading cities..." : "Select City"}
+              <option value="">Select Security Question</option>
+
+              <option value="pet">What was your first pet's name?</option>
+
+              <option value="school">What was your primary school name?</option>
+
+              <option value="city">In which city were you born?</option>
+
+              <option value="teacher">
+                What was your favorite teacher's name?
               </option>
-
-              {cities.map((city) => (
-                <option key={city._id} value={city._id}>
-                  {city.name}
-                </option>
-              ))}
             </select>
-          </div>
 
-          <select
-            name="securityQuestion"
-            value={formData.securityQuestion}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <option value="">Select Security Question</option>
+            <input
+              type="text"
+              name="securityAnswer"
+              placeholder="Security Answer"
+              value={formData.securityAnswer}
+              onChange={handleChange}
+              className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
 
-            <option value="pet">What was your first pet's name?</option>
+            <textarea
+              name="address"
+              placeholder="Full Address"
+              value={formData.address}
+              onChange={handleChange}
+              rows={4}
+              className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
 
-            <option value="school">What was your primary school name?</option>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
+            >
+              {loading ? "Submitting..." : "Submit"}
+            </button>
+          </form>
+        </div>
+      </main>
 
-            <option value="city">In which city were you born?</option>
-
-            <option value="teacher">
-              What was your favorite teacher's name?
-            </option>
-          </select>
-
-          <input
-            type="text"
-            name="securityAnswer"
-            placeholder="Security Answer"
-            value={formData.securityAnswer}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-
-          <textarea
-            name="address"
-            placeholder="Full Address"
-            value={formData.address}
-            onChange={handleChange}
-            rows={4}
-            className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
-          >
-            {loading ? "Submitting..." : "Submit"}
-          </button>
-        </form>
-      </div>
+      <Footer />
     </div>
   );
 }
