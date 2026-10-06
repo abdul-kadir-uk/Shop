@@ -18,6 +18,7 @@ type MobileColor = {
   name: string;
   isAvailable: boolean;
   price: number | null;
+  descriptionImages?: ProductImage[];
 };
 
 type MobileVariant = {
@@ -49,17 +50,25 @@ type MobileProduct = {
   ram: string;
   storage: string;
 
-  colors: MobileColor[];
-
   processor: string;
   display: string;
+
+  simCardSlots: string;
+  connectorType: string;
+  batteryCapacity: string;
+  weight: string;
+  displayType: string;
+  screenSize: string;
+  networkSupport: string;
+  insideBox: string;
+
+  colors: MobileColor[];
 
   camera: {
     front: string;
     rear: string;
   };
 
-  battery: string;
   operatingSystem: string;
   warranty: string;
   charging: string;
@@ -89,6 +98,17 @@ export default function MobileProductDetailsPage() {
 
   const [error, setError] = useState("");
 
+  // ==========================================================
+  // SELECTED COLOR
+  // ==========================================================
+
+  const [selectedColorIndex, setSelectedColorIndex] = useState(-1);
+
+  const selectedColor =
+    product && selectedColorIndex >= 0
+      ? product.colors?.[selectedColorIndex] || null
+      : null;
+
   useEffect(() => {
     if (!slug) {
       return;
@@ -105,6 +125,17 @@ export default function MobileProductDetailsPage() {
 
         if (fetchedProduct) {
           fetchedProduct.variants = response.data?.variants || [];
+
+          // Select the first available color by default.
+          const firstAvailableIndex = fetchedProduct.colors?.findIndex(
+            (color: MobileColor) => color.isAvailable,
+          );
+
+          setSelectedColorIndex(
+            firstAvailableIndex >= 0 ? firstAvailableIndex : -1,
+          );
+        } else {
+          setSelectedColorIndex(-1);
         }
 
         setProduct(fetchedProduct);
@@ -112,6 +143,7 @@ export default function MobileProductDetailsPage() {
         console.error("Failed to fetch mobile product:", error);
 
         setProduct(null);
+        setSelectedColorIndex(-1);
 
         if (error?.response?.status === 404) {
           setError("Mobile product not found.");
@@ -160,13 +192,17 @@ export default function MobileProductDetailsPage() {
               LEFT - PRODUCT IMAGES
           ================================================== */}
 
-          <ProductGallery product={product} />
+          <ProductGallery product={product} selectedColor={selectedColor} />
 
           {/* ==================================================
               RIGHT - PRODUCT INFORMATION
           ================================================== */}
 
-          <ProductInfo product={product} />
+          <ProductInfo
+            product={product}
+            selectedColorIndex={selectedColorIndex}
+            onColorChange={setSelectedColorIndex}
+          />
         </div>
       </div>
     </main>

@@ -17,6 +17,7 @@ interface ProductColor {
   name: string;
   isAvailable: boolean;
   price: number | null;
+  descriptionImages?: ProductImage[];
 }
 
 interface CameraData {
@@ -39,15 +40,25 @@ interface MobileProduct {
   ram: string;
   storage: string;
 
-  colors: ProductColor[];
-
   processor: string;
   display: string;
+
+  simCardSlots: string;
+  connectorType: string;
+  batteryCapacity: string;
+  weight: string;
+  displayType: string;
+  screenSize: string;
+  networkSupport: string;
+  insideBox: string;
+
   camera: CameraData;
-  battery: string;
+
   operatingSystem: string;
   warranty: string;
   charging: string;
+
+  colors: ProductColor[];
 
   mainImage: ProductImage;
   descriptionImages: ProductImage[];
@@ -258,22 +269,22 @@ export default function ViewMobileProductPage() {
                         type="button"
                         onClick={() => setSelectedImage(image.url)}
                         className="
-                          border
-                          rounded-lg
-                          overflow-hidden
-                          bg-gray-50
-                          hover:border-gray-400
-                        "
+                            border
+                            rounded-lg
+                            overflow-hidden
+                            bg-gray-50
+                            hover:border-gray-400
+                          "
                       >
                         <img
                           src={image.url}
                           alt={`${product.productName} ${index + 1}`}
                           className="
-                            w-full
-                            h-24
-                            sm:h-28
-                            object-cover
-                          "
+                              w-full
+                              h-24
+                              sm:h-28
+                              object-cover
+                            "
                         />
                       </button>
                     ))}
@@ -451,6 +462,44 @@ export default function ViewMobileProductPage() {
 
                     <div className="text-xl font-bold">₹{product.price}</div>
                   )}
+
+                  {/* Colour Description Images */}
+
+                  {color.descriptionImages &&
+                    color.descriptionImages.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-sm text-gray-500 mb-2">
+                          Color Images
+                        </p>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          {color.descriptionImages.map((image, imageIndex) => (
+                            <button
+                              key={image.key || `${image.url}-${imageIndex}`}
+                              type="button"
+                              onClick={() => setSelectedImage(image.url)}
+                              className="
+                                  border
+                                  rounded-md
+                                  overflow-hidden
+                                  bg-gray-50
+                                  hover:border-gray-400
+                                "
+                            >
+                              <img
+                                src={image.url}
+                                alt={`${color.name} ${imageIndex + 1}`}
+                                className="
+                                    w-full
+                                    h-20
+                                    object-cover
+                                  "
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                 </div>
               );
             })}
@@ -472,6 +521,32 @@ export default function ViewMobileProductPage() {
 
           <InfoItem label="Display" value={product.display || "-"} />
 
+          <InfoItem
+            label="SIM Card Slots"
+            value={product.simCardSlots || "-"}
+          />
+
+          <InfoItem
+            label="Connector Type"
+            value={product.connectorType || "-"}
+          />
+
+          <InfoItem
+            label="Battery Capacity"
+            value={product.batteryCapacity || "-"}
+          />
+
+          <InfoItem label="Weight" value={product.weight || "-"} />
+
+          <InfoItem label="Display Type" value={product.displayType || "-"} />
+
+          <InfoItem label="Screen Size" value={product.screenSize || "-"} />
+
+          <InfoItem
+            label="Network Support"
+            value={product.networkSupport || "-"}
+          />
+
           {/* Camera */}
 
           <div>
@@ -490,8 +565,6 @@ export default function ViewMobileProductPage() {
             </p>
           </div>
 
-          <InfoItem label="Battery" value={product.battery || "-"} />
-
           <InfoItem
             label="Operating System"
             value={product.operatingSystem || "-"}
@@ -500,6 +573,14 @@ export default function ViewMobileProductPage() {
           <InfoItem label="Warranty" value={product.warranty || "-"} />
 
           <InfoItem label="Charging" value={product.charging || "-"} />
+
+          <div className="sm:col-span-2 lg:col-span-3">
+            <p className="text-sm text-gray-500">Inside the Box</p>
+
+            <p className="font-medium mt-1 wrap-break-word">
+              {product.insideBox || "-"}
+            </p>
+          </div>
         </div>
       </div>
 

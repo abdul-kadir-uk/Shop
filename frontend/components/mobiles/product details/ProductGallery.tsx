@@ -1,12 +1,19 @@
 // components/mobiles/product details/ProductGallery.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 type ProductImage = {
   url: string;
   key?: string;
+};
+
+type ProductColor = {
+  name: string;
+  isAvailable: boolean;
+  price: number | null;
+  descriptionImages?: ProductImage[];
 };
 
 type ProductGalleryProps = {
@@ -16,27 +23,42 @@ type ProductGalleryProps = {
     mainImage: ProductImage;
 
     descriptionImages?: ProductImage[];
+
+    colors?: ProductColor[];
   };
+
+  selectedColor?: ProductColor | null;
 };
 
-export default function ProductGallery({ product }: ProductGalleryProps) {
+export default function ProductGallery({
+  product,
+  selectedColor,
+}: ProductGalleryProps) {
   const images = useMemo(() => {
     const allImages: ProductImage[] = [];
 
-    if (product.mainImage?.url) {
-      allImages.push(product.mainImage);
-    }
-
-    if (product.descriptionImages?.length) {
+    // If the selected color has its own description images,
+    // use those images instead of the general product description images.
+    if (selectedColor?.descriptionImages?.length) {
+      allImages.push(...selectedColor.descriptionImages);
+    } else if (product.descriptionImages?.length) {
+      // Fallback to the normal product description images
+      // when the selected color has no specific images.
       allImages.push(...product.descriptionImages);
     }
 
     return allImages;
-  }, [product]);
+  }, [product.descriptionImages, selectedColor?.descriptionImages]);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Reset the gallery whenever the customer changes the selected color.
+  useEffect(() => {
+    setSelectedIndex(0);
+    setPreviewOpen(false);
+  }, [selectedColor?.name]);
 
   const selectedImage = images[selectedIndex];
 
@@ -64,7 +86,7 @@ export default function ProductGallery({ product }: ProductGalleryProps) {
     <>
       <div className="space-y-4">
         {/* ==================================================
-            MAIN IMAGE
+            GALLERY IMAGE
         ================================================== */}
 
         <div

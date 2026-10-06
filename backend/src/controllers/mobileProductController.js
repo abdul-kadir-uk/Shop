@@ -1,6 +1,7 @@
 // controllers/mobileProductController.js
 
 import MobileProduct from "../models/MobileProduct.js";
+
 import { generateSlug } from "../utils/generateSlug.js";
 
 import {
@@ -20,25 +21,63 @@ export const createMobileProduct = async (req, res) => {
   const uploadedImages = [];
 
   try {
+    // -------------------------------------------------------
+    // Support both upload.fields() and upload.any()
+    // by normalizing files into an object.
+    // -------------------------------------------------------
+
+    if (Array.isArray(req.files)) {
+      const normalizedFiles = {};
+
+      for (const file of req.files) {
+        if (!normalizedFiles[file.fieldname]) {
+          normalizedFiles[file.fieldname] = [];
+        }
+
+        normalizedFiles[file.fieldname].push(file);
+      }
+
+      req.files = normalizedFiles;
+    }
+
     const {
       productName,
       brand,
       description,
       variantGroupId,
       variantName,
+
+      // Basic specifications
       ram,
       storage,
-      colors,
       processor,
       display,
+
+      // Detailed specifications
+      simCardSlots,
+      connectorType,
+      batteryCapacity,
+      weight,
+      displayType,
+      screenSize,
+      networkSupport,
+      insideBox,
+
+      // Other specifications
       camera,
-      battery,
       operatingSystem,
       warranty,
+      charging,
+
+      // Colours
+      colors,
+
+      // Pricing
       price,
       discountPrice,
+
+      // Availability
       isAvailable,
-      charging,
     } = req.body;
 
     /* -------------------------------------------------------
@@ -156,6 +195,23 @@ export const createMobileProduct = async (req, res) => {
             }
           }
 
+          /*
+           * Colour-specific description images.
+           *
+           * Existing image objects are still supported.
+           */
+
+          let colorDescriptionImages = [];
+
+          if (Array.isArray(color.descriptionImages)) {
+            colorDescriptionImages = color.descriptionImages
+              .filter((image) => image?.url)
+              .map((image) => ({
+                url: image.url,
+                key: image.key || "",
+              }));
+          }
+
           return {
             name: color.name.trim(),
 
@@ -167,12 +223,46 @@ export const createMobileProduct = async (req, res) => {
                   : String(color.isAvailable).toLowerCase() === "true",
 
             price: colorPrice,
+
+            descriptionImages: colorDescriptionImages,
           };
         });
       } catch (error) {
         return res.status(400).json({
           message: error.message,
         });
+      }
+    }
+
+    /* -------------------------------------------------------
+       COLOUR-SPECIFIC DESCRIPTION IMAGES
+    ------------------------------------------------------- */
+
+    for (let index = 0; index < parsedColors.length; index++) {
+      const color = parsedColors[index];
+
+      const fieldName = `colorDescriptionImages_${index}`;
+      const colorFiles = req.files?.[fieldName] || [];
+
+      if (colorFiles.length > 8) {
+        await rollbackUploads(uploadedImages);
+
+        return res.status(400).json({
+          message: `Maximum 8 description images are allowed for color: ${color.name}`,
+        });
+      }
+
+      if (colorFiles.length > 0) {
+        const uploadedColorImages = await uploadMultipleImages(
+          colorFiles,
+          "mobile-products/description",
+        );
+
+        uploadedImages.push(...uploadedColorImages);
+
+        parsedColors[index].descriptionImages = uploadedColorImages;
+      } else {
+        parsedColors[index].descriptionImages = [];
       }
     }
 
@@ -269,39 +359,60 @@ export const createMobileProduct = async (req, res) => {
 
       description: description || "",
 
+      // Variant grouping
       variantGroupId: variantGroupId || null,
 
-      variantName: variantName || "",
+      variantName: variantName?.trim() || "",
 
-      ram: ram || "",
+      // Basic specifications
+      ram: ram?.trim() || "",
 
-      storage: storage || "",
+      storage: storage?.trim() || "",
 
-      colors: parsedColors,
+      processor: processor?.trim() || "",
 
-      processor: processor || "",
+      display: display?.trim() || "",
 
-      display: display || "",
+      // Detailed specifications
+      simCardSlots: simCardSlots?.trim() || "",
 
+      connectorType: connectorType?.trim() || "",
+
+      batteryCapacity: batteryCapacity?.trim() || "",
+
+      weight: weight?.trim() || "",
+
+      displayType: displayType?.trim() || "",
+
+      screenSize: screenSize?.trim() || "",
+
+      networkSupport: networkSupport?.trim() || "",
+
+      insideBox: insideBox?.trim() || "",
+
+      // Other specifications
       camera: parsedCamera,
 
-      battery: battery || "",
+      operatingSystem: operatingSystem?.trim() || "",
 
-      operatingSystem: operatingSystem || "",
-
-      // WARRANTY
       warranty: warranty?.trim() || "",
 
-      charging: charging || "",
+      charging: charging?.trim() || "",
 
+      // Colours
+      colors: parsedColors,
+
+      // Images
       mainImage,
 
       descriptionImages,
 
+      // Pricing
       price: parsedPrice,
 
       discountPrice: parsedDiscountPrice,
 
+      // Availability
       isAvailable: parsedIsAvailable,
     });
 
@@ -416,6 +527,7 @@ export const getSellerMobileProducts = async (req, res) => {
         totalProducts,
         limit: limitNumber,
       },
+
       products,
     });
   } catch (error) {
@@ -467,6 +579,25 @@ export const updateMobileProduct = async (req, res) => {
   const uploadedImages = [];
 
   try {
+    // -------------------------------------------------------
+    // Support upload.any()
+    // by normalizing files into an object.
+    // -------------------------------------------------------
+
+    if (Array.isArray(req.files)) {
+      const normalizedFiles = {};
+
+      for (const file of req.files) {
+        if (!normalizedFiles[file.fieldname]) {
+          normalizedFiles[file.fieldname] = [];
+        }
+
+        normalizedFiles[file.fieldname].push(file);
+      }
+
+      req.files = normalizedFiles;
+    }
+
     const { id } = req.params;
 
     const product = await MobileProduct.findOne({
@@ -485,21 +616,43 @@ export const updateMobileProduct = async (req, res) => {
       productName,
       brand,
       description,
+
       variantGroupId,
       variantName,
+
+      // Basic specifications
       ram,
       storage,
-      colors,
       processor,
       display,
+
+      // Detailed specifications
+      simCardSlots,
+      connectorType,
+      batteryCapacity,
+      weight,
+      displayType,
+      screenSize,
+      networkSupport,
+      insideBox,
+
+      // Other specifications
       camera,
-      battery,
       operatingSystem,
       warranty,
       charging,
+
+      // Colours
+      colors,
+
+      // Pricing
       price,
       discountPrice,
+
+      // Availability
       isAvailable,
+
+      // Images
       keepDescriptionImages,
     } = req.body;
 
@@ -545,6 +698,10 @@ export const updateMobileProduct = async (req, res) => {
       product.variantName = variantName;
     }
 
+    /* -------------------------------------------------------
+       BASIC SPECIFICATIONS
+    ------------------------------------------------------- */
+
     if (ram !== undefined) {
       product.ram = ram;
     }
@@ -559,6 +716,42 @@ export const updateMobileProduct = async (req, res) => {
 
     if (display !== undefined) {
       product.display = display;
+    }
+
+    /* -------------------------------------------------------
+       DETAILED SPECIFICATIONS
+    ------------------------------------------------------- */
+
+    if (simCardSlots !== undefined) {
+      product.simCardSlots = simCardSlots;
+    }
+
+    if (connectorType !== undefined) {
+      product.connectorType = connectorType;
+    }
+
+    if (batteryCapacity !== undefined) {
+      product.batteryCapacity = batteryCapacity;
+    }
+
+    if (weight !== undefined) {
+      product.weight = weight;
+    }
+
+    if (displayType !== undefined) {
+      product.displayType = displayType;
+    }
+
+    if (screenSize !== undefined) {
+      product.screenSize = screenSize;
+    }
+
+    if (networkSupport !== undefined) {
+      product.networkSupport = networkSupport;
+    }
+
+    if (insideBox !== undefined) {
+      product.insideBox = insideBox;
     }
 
     /* -------------------------------------------------------
@@ -592,17 +785,13 @@ export const updateMobileProduct = async (req, res) => {
       };
     }
 
-    if (battery !== undefined) {
-      product.battery = battery;
-    }
+    /* -------------------------------------------------------
+       OTHER SPECIFICATIONS
+    ------------------------------------------------------- */
 
     if (operatingSystem !== undefined) {
       product.operatingSystem = operatingSystem;
     }
-
-    /* -------------------------------------------------------
-       WARRANTY
-    ------------------------------------------------------- */
 
     if (warranty !== undefined) {
       product.warranty = warranty?.trim() || "";
@@ -644,6 +833,7 @@ export const updateMobileProduct = async (req, res) => {
       }
 
       finalPrice = parsedPrice;
+
       product.price = parsedPrice;
     }
 
@@ -702,7 +892,7 @@ export const updateMobileProduct = async (req, res) => {
       }
 
       try {
-        parsedColors = parsedColors.map((color) => {
+        parsedColors = parsedColors.map((color, index) => {
           if (!color?.name?.trim()) {
             throw new Error("Color name is required");
           }
@@ -721,6 +911,46 @@ export const updateMobileProduct = async (req, res) => {
             }
           }
 
+          /*
+           * Preserve existing colour-specific images when the
+           * colour is updated without uploading new images.
+           *
+           * The index is used because Postman fields use:
+           *
+           * colorDescriptionImages_0
+           * colorDescriptionImages_1
+           * colorDescriptionImages_2
+           */
+
+          let colorDescriptionImages = [];
+
+          if (Array.isArray(color.descriptionImages)) {
+            colorDescriptionImages = color.descriptionImages
+              .filter((image) => image?.url)
+              .map((image) => ({
+                url: image.url,
+                key: image.key || "",
+              }));
+          }
+
+          /*
+           * If descriptionImages are not supplied in the
+           * colors JSON, preserve the existing images for
+           * the same colour index.
+           */
+
+          if (
+            colorDescriptionImages.length === 0 &&
+            product.colors?.[index]?.descriptionImages?.length
+          ) {
+            colorDescriptionImages = product.colors[
+              index
+            ].descriptionImages.map((image) => ({
+              url: image.url,
+              key: image.key || "",
+            }));
+          }
+
           return {
             name: color.name.trim(),
 
@@ -732,12 +962,65 @@ export const updateMobileProduct = async (req, res) => {
                   : String(color.isAvailable).toLowerCase() === "true",
 
             price: colorPrice,
+
+            descriptionImages: colorDescriptionImages,
           };
         });
       } catch (error) {
         return res.status(400).json({
           message: error.message,
         });
+      }
+
+      /* -----------------------------------------------------
+         NEW COLOUR-SPECIFIC DESCRIPTION IMAGES
+      ----------------------------------------------------- */
+
+      for (let index = 0; index < parsedColors.length; index++) {
+        const color = parsedColors[index];
+
+        const fieldName = `colorDescriptionImages_${index}`;
+        const colorFiles = req.files?.[fieldName] || [];
+
+        if (colorFiles.length > 6) {
+          await rollbackUploads(uploadedImages);
+
+          return res.status(400).json({
+            message: `Maximum 6 description images are allowed for color: ${color.name}`,
+          });
+        }
+
+        if (colorFiles.length > 0) {
+          const existingColorImages =
+            product.colors?.[index]?.descriptionImages || [];
+
+          /*
+           * Maximum total images for this colour is 6.
+           */
+
+          const totalColorImages =
+            existingColorImages.length + colorFiles.length;
+
+          if (totalColorImages > 6) {
+            await rollbackUploads(uploadedImages);
+
+            return res.status(400).json({
+              message: `Maximum 6 description images are allowed for color: ${color.name}`,
+            });
+          }
+
+          const uploadedColorImages = await uploadMultipleImages(
+            colorFiles,
+            "mobile-products/description",
+          );
+
+          uploadedImages.push(...uploadedColorImages);
+
+          parsedColors[index].descriptionImages = [
+            ...(parsedColors[index].descriptionImages || []),
+            ...uploadedColorImages,
+          ];
+        }
       }
 
       product.colors = parsedColors;
@@ -779,7 +1062,7 @@ export const updateMobileProduct = async (req, res) => {
         });
       }
     } else {
-      keepImages = product.descriptionImages.map((image) => image.key);
+      keepImages = (product.descriptionImages || []).map((image) => image.key);
     }
 
     if (!Array.isArray(keepImages)) {
@@ -865,18 +1148,39 @@ export const deleteMobileProduct = async (req, res) => {
     }
 
     /* -------------------------------------------------------
-       DELETE S3 IMAGES
+       DELETE MAIN S3 IMAGE
     ------------------------------------------------------- */
 
     await deleteSingleImage(product.mainImage);
 
+    /* -------------------------------------------------------
+       DELETE GENERAL DESCRIPTION IMAGES
+    ------------------------------------------------------- */
+
     await deleteMultipleImages(product.descriptionImages);
+
+    /* -------------------------------------------------------
+       DELETE COLOUR DESCRIPTION IMAGES
+    ------------------------------------------------------- */
+
+    const colorImages = [];
+
+    for (const color of product.colors || []) {
+      if (Array.isArray(color.descriptionImages)) {
+        colorImages.push(...color.descriptionImages);
+      }
+    }
+
+    if (colorImages.length > 0) {
+      await deleteMultipleImages(colorImages);
+    }
 
     /* -------------------------------------------------------
        SOFT DELETE
     ------------------------------------------------------- */
 
     product.isDeleted = true;
+
     product.deletedAt = new Date();
 
     await product.save();

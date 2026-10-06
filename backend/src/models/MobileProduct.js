@@ -75,6 +75,99 @@ const mobileProductSchema = new mongoose.Schema(
       trim: true,
     },
 
+    processor: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    display: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // Detailed specifications
+    simCardSlots: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    connectorType: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    batteryCapacity: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    weight: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    displayType: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    screenSize: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    networkSupport: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    insideBox: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    camera: {
+      front: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+
+      rear: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+    },
+
+    operatingSystem: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    warranty: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    charging: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     // Available colours for this variant
     colors: [
       {
@@ -97,58 +190,14 @@ const mobileProductSchema = new mongoose.Schema(
           default: null,
           min: 0,
         },
+
+        // Colour-specific description images
+        descriptionImages: {
+          type: [imageSchema],
+          default: [],
+        },
       },
     ],
-
-    processor: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    display: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    camera: {
-      front: {
-        type: String,
-        default: "",
-        trim: true,
-      },
-
-      rear: {
-        type: String,
-        default: "",
-        trim: true,
-      },
-    },
-
-    battery: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    operatingSystem: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    warranty: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    charging: {
-      type: String,
-      default: "",
-      trim: true,
-    },
 
     // Images
     mainImage: {
@@ -156,6 +205,8 @@ const mobileProductSchema = new mongoose.Schema(
       required: true,
     },
 
+    // General description images
+    // Can be used as fallback when a colour has no images
     descriptionImages: {
       type: [imageSchema],
       default: [],
@@ -175,7 +226,6 @@ const mobileProductSchema = new mongoose.Schema(
     },
 
     // Product availability
-    // false = product is out of stock / unavailable
     isAvailable: {
       type: Boolean,
       default: true,

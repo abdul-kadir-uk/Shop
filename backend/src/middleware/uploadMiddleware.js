@@ -41,6 +41,14 @@ const fileFilter = (req, file, cb) => {
 // Product Image Upload
 // =========================
 
+// .any() is used because colour description
+// image fields are dynamic:
+//
+// colorDescriptionImages_0
+// colorDescriptionImages_1
+// colorDescriptionImages_2
+// etc.
+
 export const uploadProductImages = multer({
   storage,
 
@@ -49,17 +57,7 @@ export const uploadProductImages = multer({
   limits: {
     fileSize: 20 * 1024 * 1024,
   },
-}).fields([
-  {
-    name: "mainImage",
-    maxCount: 1,
-  },
-
-  {
-    name: "descriptionImages",
-    maxCount: 8,
-  },
-]);
+}).any();
 
 // =========================
 // Product Image Compression
@@ -67,11 +65,29 @@ export const uploadProductImages = multer({
 
 export const compressProductImages = async (req, res, next) => {
   try {
+    // ======================================================
+    // Convert multer .any() array into object-style req.files
+    // ======================================================
+
+    if (Array.isArray(req.files)) {
+      const normalizedFiles = {};
+
+      for (const file of req.files) {
+        if (!normalizedFiles[file.fieldname]) {
+          normalizedFiles[file.fieldname] = [];
+        }
+
+        normalizedFiles[file.fieldname].push(file);
+      }
+
+      req.files = normalizedFiles;
+    }
+
     // -----------------------
     // Main Image
     // -----------------------
 
-    if (req.files && req.files.mainImage && req.files.mainImage.length) {
+    if (req.files?.mainImage?.length) {
       const image = req.files.mainImage[0];
 
       image.buffer = await sharp(image.buffer)
@@ -85,16 +101,44 @@ export const compressProductImages = async (req, res, next) => {
         .toBuffer();
 
       image.mimetype = "image/webp";
+
       image.originalname =
         image.originalname.replace(/\.[^/.]+$/, "") + ".webp";
     }
 
     // -----------------------
-    // Description Images
+    // General Description Images
     // -----------------------
 
-    if (req.files && req.files.descriptionImages) {
+    if (req.files?.descriptionImages) {
       for (const image of req.files.descriptionImages) {
+        image.buffer = await sharp(image.buffer)
+          .resize({
+            width: 1200,
+            withoutEnlargement: true,
+          })
+          .webp({
+            quality: 80,
+          })
+          .toBuffer();
+
+        image.mimetype = "image/webp";
+
+        image.originalname =
+          image.originalname.replace(/\.[^/.]+$/, "") + ".webp";
+      }
+    }
+
+    // -----------------------
+    // Colour-Specific Images
+    // -----------------------
+
+    for (const fieldName of Object.keys(req.files || {})) {
+      if (!fieldName.startsWith("colorDescriptionImages_")) {
+        continue;
+      }
+
+      for (const image of req.files[fieldName]) {
         image.buffer = await sharp(image.buffer)
           .resize({
             width: 1200,

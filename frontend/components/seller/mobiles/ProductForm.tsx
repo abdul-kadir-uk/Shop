@@ -1,4 +1,5 @@
 // components/seller/mobiles/ProductForm.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -46,6 +47,10 @@ interface ProductColor {
   name: string;
   isAvailable: boolean;
   price: string | number | null;
+  descriptionImages?: {
+    url: string;
+    key: string;
+  }[];
 }
 
 interface CameraData {
@@ -57,20 +62,40 @@ interface ProductFormData {
   productName: string;
   brand: string;
   description: string;
+
+  // Variant
   variantName: string;
   variantGroupId: string;
+
+  // Specifications
   ram: string;
   storage: string;
   processor: string;
   display: string;
+
+  // New detailed specifications
+  simCardSlots: string;
+  connectorType: string;
+  batteryCapacity: string;
+  weight: string;
+  displayType: string;
+  screenSize: string;
+  networkSupport: string;
+  insideBox: string;
+
   camera: CameraData;
-  battery: string;
   operatingSystem: string;
   warranty: string;
   charging: string;
+
+  // Colours
   colors: ProductColor[];
+
+  // Pricing
   price: string | number;
   discountPrice: string | number;
+
+  // Availability
   isAvailable: boolean;
 }
 
@@ -90,6 +115,7 @@ interface ProductFormProps {
     data: ProductFormData,
     mainImage: File | null,
     descriptionImages: File[],
+    colorDescriptionImages: Record<number, File[]>,
   ) => void;
 
   loading?: boolean;
@@ -110,31 +136,49 @@ export default function ProductForm({
     productName: initialData?.productName || "",
     brand: initialData?.brand || "",
     description: initialData?.description || "",
+
     variantName: initialData?.variantName || "",
     variantGroupId: initialData?.variantGroupId || "",
+
     ram: initialData?.ram || "",
     storage: initialData?.storage || "",
     processor: initialData?.processor || "",
     display: initialData?.display || "",
+
+    simCardSlots: initialData?.simCardSlots || "",
+    connectorType: initialData?.connectorType || "",
+    batteryCapacity: initialData?.batteryCapacity || "",
+    weight: initialData?.weight || "",
+    displayType: initialData?.displayType || "",
+    screenSize: initialData?.screenSize || "",
+    networkSupport: initialData?.networkSupport || "",
+    insideBox: initialData?.insideBox || "",
 
     camera: {
       front: initialData?.camera?.front || "",
       rear: initialData?.camera?.rear || "",
     },
 
-    battery: initialData?.battery || "",
     operatingSystem: initialData?.operatingSystem || "",
     warranty: initialData?.warranty || "",
     charging: initialData?.charging || "",
+
     colors: initialData?.colors || [],
+
     price: initialData?.price ?? "",
     discountPrice: initialData?.discountPrice ?? "",
+
     isAvailable: initialData?.isAvailable ?? true,
   });
 
   const [mainImage, setMainImage] = useState<File | null>(null);
 
   const [descriptionImages, setDescriptionImages] = useState<File[]>([]);
+
+  // New colour-specific description images
+  const [colorDescriptionImages, setColorDescriptionImages] = useState<
+    Record<number, File[]>
+  >({});
 
   /* =========================================================
       IMAGE PREVIEWS
@@ -147,6 +191,9 @@ export default function ProductForm({
   const [descriptionImagePreviews, setDescriptionImagePreviews] = useState<
     string[]
   >([]);
+
+  const [colorDescriptionImagePreviews, setColorDescriptionImagePreviews] =
+    useState<Record<number, string[]>>({});
 
   /* =========================================================
       MAIN IMAGE PREVIEW
@@ -180,6 +227,29 @@ export default function ProductForm({
       urls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [descriptionImages]);
+
+  /* =========================================================
+      COLOUR DESCRIPTION IMAGE PREVIEWS
+  ========================================================= */
+
+  useEffect(() => {
+    const previewMap: Record<number, string[]> = {};
+    const objectUrls: string[] = [];
+
+    Object.entries(colorDescriptionImages).forEach(([index, files]) => {
+      previewMap[Number(index)] = files.map((file) => {
+        const url = URL.createObjectURL(file);
+        objectUrls.push(url);
+        return url;
+      });
+    });
+
+    setColorDescriptionImagePreviews(previewMap);
+
+    return () => {
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [colorDescriptionImages]);
 
   /* =========================================================
       FORM CHANGE
@@ -236,6 +306,25 @@ export default function ProductForm({
       ...prev,
       colors: prev.colors.filter((_, colorIndex) => colorIndex !== index),
     }));
+
+    // Keep colour-specific image indexes aligned after deletion.
+    setColorDescriptionImages((prev) => {
+      const next: Record<number, File[]> = {};
+
+      Object.entries(prev).forEach(([key, files]) => {
+        const currentIndex = Number(key);
+
+        if (currentIndex < index) {
+          next[currentIndex] = files;
+        }
+
+        if (currentIndex > index) {
+          next[currentIndex - 1] = files;
+        }
+      });
+
+      return next;
+    });
   };
 
   const handleColorChange = (
@@ -275,11 +364,67 @@ export default function ProductForm({
   };
 
   /* =========================================================
+      COLOUR DESCRIPTION IMAGE UPLOAD
+  ========================================================= */
+
+  const handleColorDescriptionImagesChange = (
+    index: number,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    if (!e.target.files || e.target.files.length === 0) {
+      return;
+    }
+
+    const files = Array.from(e.target.files);
+
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) {
+        alert(`${file.name} is not a valid image.`);
+        e.target.value = "";
+        return;
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`${file.name} must be less than 20MB.`);
+        e.target.value = "";
+        return;
+      }
+    }
+
+    setColorDescriptionImages((prev) => ({
+      ...prev,
+      [index]: [...(prev[index] || []), ...files],
+    }));
+
+    e.target.value = "";
+  };
+
+  const removeColorDescriptionImage = (index: number, imageIndex: number) => {
+    setColorDescriptionImages((prev) => {
+      const updated = (prev[index] || []).filter(
+        (_, currentIndex) => currentIndex !== imageIndex,
+      );
+
+      const next = { ...prev };
+
+      if (updated.length === 0) {
+        delete next[index];
+      } else {
+        next[index] = updated;
+      }
+
+      return next;
+    });
+  };
+
+  /* =========================================================
       MAIN IMAGE
   ========================================================= */
 
   const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+    if (!e.target.files || e.target.files.length === 0) {
+      return;
+    }
 
     const file = e.target.files[0];
 
@@ -313,21 +458,11 @@ export default function ProductForm({
   const handleDescriptionImagesChange = (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+    if (!e.target.files || e.target.files.length === 0) {
+      return;
+    }
 
     const files = Array.from(e.target.files);
-
-    /*
-      IMPORTANT:
-      New files are appended.
-
-      So the user can:
-      - select all 6 at once
-      - select 1
-      - select another 1
-      - select another 2
-      - etc.
-    */
 
     if (remainingDescriptionSlots <= 0) {
       alert("Maximum 6 description images allowed.");
@@ -360,15 +495,8 @@ export default function ProductForm({
       }
     }
 
-    /*
-      APPEND instead of replace.
-    */
     setDescriptionImages((prev) => [...prev, ...files]);
 
-    /*
-      Reset input so the user can select the same
-      file again later if needed.
-    */
     e.target.value = "";
   };
 
@@ -436,6 +564,7 @@ export default function ProductForm({
         color.price === "" || color.price === null || color.price === undefined
           ? null
           : Number(color.price),
+      descriptionImages: color.descriptionImages || [],
     }));
 
     /* =======================================================
@@ -448,6 +577,7 @@ export default function ProductForm({
     };
 
     const normalizedWarranty = formData.warranty.trim();
+
     onSubmit(
       {
         ...formData,
@@ -467,10 +597,9 @@ export default function ProductForm({
 
         colors: normalizedColors,
       },
-
       mainImage,
-
       descriptionImages,
+      colorDescriptionImages,
     );
   };
 
@@ -697,9 +826,55 @@ export default function ProductForm({
           </div>
         </div>
 
-        {/* =====================================================
-            CAMERA
-        ===================================================== */}
+        {/* Detailed Mobile Specifications */}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[
+            ["simCardSlots", "SIM Card Slots", "e.g. Dual SIM"],
+            ["connectorType", "Connector Type", "e.g. USB Type-C"],
+            ["batteryCapacity", "Battery Capacity", "e.g. 5000 mAh"],
+            ["weight", "Weight", "e.g. 199 g"],
+            ["displayType", "Display Type", "e.g. AMOLED"],
+            ["screenSize", "Screen Size", "e.g. 6.7 inches"],
+            ["networkSupport", "Network Support", "e.g. 5G, 4G LTE"],
+          ].map(([name, label, placeholder]) => (
+            <div key={name}>
+              <label className="block font-semibold mb-2">
+                {label}
+                <span className="text-gray-500 font-normal"> (Optional)</span>
+              </label>
+
+              <input
+                type="text"
+                name={name}
+                value={formData[name as keyof ProductFormData] as string}
+                onChange={handleChange}
+                placeholder={placeholder}
+                className="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Inside Box */}
+
+        <div>
+          <label className="block font-semibold mb-2">
+            Inside the Box
+            <span className="text-gray-500 font-normal"> (Optional)</span>
+          </label>
+
+          <textarea
+            name="insideBox"
+            rows={3}
+            value={formData.insideBox}
+            onChange={handleChange}
+            placeholder="e.g. Phone, USB Type-C Cable, Charger, SIM Ejector Tool"
+            className="w-full border rounded-lg p-3 resize-y focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+        </div>
+
+        {/* Camera */}
 
         <div>
           <label className="block font-semibold mb-2">
@@ -744,25 +919,9 @@ export default function ProductForm({
           </div>
         </div>
 
-        {/* Battery / OS */}
+        {/* Battery / OS / Warranty */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block font-semibold mb-2">
-              Battery
-              <span className="text-gray-500 font-normal"> (Optional)</span>
-            </label>
-
-            <input
-              type="text"
-              name="battery"
-              value={formData.battery}
-              onChange={handleChange}
-              placeholder="e.g. 5000 mAh"
-              className="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
-
           <div>
             <label className="block font-semibold mb-2">
               Operating System
@@ -825,7 +984,7 @@ export default function ProductForm({
 
           <p className="text-sm text-gray-500 mt-1">
             Add the available colors for this mobile. A color can optionally
-            have its own price.
+            have its own price and description images.
           </p>
         </div>
 
@@ -915,6 +1074,104 @@ export default function ProductForm({
                   </div>
                 </div>
 
+                {/* Colour-specific Description Images */}
+
+                <div className="mt-4 border-t pt-4">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <label className="block font-semibold">
+                      Colour Description Images
+                      <span className="text-gray-500 font-normal">
+                        {" "}
+                        (Optional)
+                      </span>
+                    </label>
+
+                    <span className="text-xs text-gray-500">
+                      {(colorDescriptionImages[index] || []).length} new
+                      image(s)
+                    </span>
+                  </div>
+
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) =>
+                      handleColorDescriptionImagesChange(index, e)
+                    }
+                    className="w-full border rounded-lg p-3 bg-white"
+                  />
+
+                  <p className="text-xs text-gray-500 mt-2">
+                    Add images that specifically describe this colour. Maximum
+                    20MB per image.
+                  </p>
+
+                  {/* Existing Colour Images */}
+
+                  {color.descriptionImages &&
+                    color.descriptionImages.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm font-medium mb-3">
+                          Existing Colour Images
+                        </p>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {color.descriptionImages.map((image) => (
+                            <img
+                              key={image.key}
+                              src={image.url}
+                              alt={`${color.name} colour description`}
+                              className="w-full h-24 rounded-lg object-cover border"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* New Colour Images */}
+
+                  {(colorDescriptionImages[index] || []).length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm font-medium mb-3">
+                        New Colour Images
+                      </p>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {(colorDescriptionImagePreviews[index] || []).map(
+                          (preview, imageIndex) => (
+                            <div
+                              key={`${preview}-${imageIndex}`}
+                              className="relative group"
+                            >
+                              <img
+                                src={preview}
+                                alt={`${color.name} new image ${
+                                  imageIndex + 1
+                                }`}
+                                className="w-full h-24 rounded-lg object-cover border"
+                              />
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeColorDescriptionImage(index, imageIndex)
+                                }
+                                className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-7 h-7 flex items-center justify-center text-lg font-bold shadow"
+                                aria-label={`Delete ${color.name} image ${
+                                  imageIndex + 1
+                                }`}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <p className="text-xs text-gray-500 mt-3">
                   {color.price === null || color.price === ""
                     ? "This color will use the main product price."
@@ -998,13 +1255,12 @@ export default function ProductForm({
           <h2 className="text-xl font-semibold">Product Images</h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Upload the main product image and up to 6 description images.
+            Upload the main product image and up to 6 general description
+            images.
           </p>
         </div>
 
-        {/* =====================================================
-            MAIN IMAGE
-        ===================================================== */}
+        {/* MAIN IMAGE */}
 
         <div>
           <label className="block font-semibold mb-2">
@@ -1032,9 +1288,7 @@ export default function ProductForm({
           )}
         </div>
 
-        {/* =====================================================
-            DESCRIPTION IMAGES
-        ===================================================== */}
+        {/* DESCRIPTION IMAGES */}
 
         <div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
@@ -1085,9 +1339,7 @@ export default function ProductForm({
             </div>
           )}
 
-          {/* ===================================================
-              EXISTING IMAGES
-          =================================================== */}
+          {/* EXISTING IMAGES */}
 
           {existingDescriptionImages.length > 0 && (
             <div className="mt-5">
@@ -1112,22 +1364,22 @@ export default function ProductForm({
                         onRemoveExistingDescriptionImage?.(image.key)
                       }
                       className="
-                        absolute
-                        -top-2
-                        -right-2
-                        bg-red-600
-                        hover:bg-red-700
-                        text-white
-                        rounded-full
-                        w-7
-                        h-7
-                        flex
-                        items-center
-                        justify-center
-                        text-lg
-                        font-bold
-                        shadow
-                      "
+                          absolute
+                          -top-2
+                          -right-2
+                          bg-red-600
+                          hover:bg-red-700
+                          text-white
+                          rounded-full
+                          w-7
+                          h-7
+                          flex
+                          items-center
+                          justify-center
+                          text-lg
+                          font-bold
+                          shadow
+                        "
                       aria-label="Delete existing image"
                     >
                       ×
@@ -1138,9 +1390,7 @@ export default function ProductForm({
             </div>
           )}
 
-          {/* ===================================================
-              NEW IMAGE PREVIEWS
-          =================================================== */}
+          {/* NEW IMAGE PREVIEWS */}
 
           {descriptionImages.length > 0 && (
             <div className="mt-5">
@@ -1164,22 +1414,22 @@ export default function ProductForm({
                       type="button"
                       onClick={() => removeDescriptionImage(index)}
                       className="
-                        absolute
-                        -top-2
-                        -right-2
-                        bg-red-600
-                        hover:bg-red-700
-                        text-white
-                        rounded-full
-                        w-7
-                        h-7
-                        flex
-                        items-center
-                        justify-center
-                        text-lg
-                        font-bold
-                        shadow
-                      "
+                          absolute
+                          -top-2
+                          -right-2
+                          bg-red-600
+                          hover:bg-red-700
+                          text-white
+                          rounded-full
+                          w-7
+                          h-7
+                          flex
+                          items-center
+                          justify-center
+                          text-lg
+                          font-bold
+                          shadow
+                        "
                       aria-label={`Delete description image ${index + 1}`}
                     >
                       ×

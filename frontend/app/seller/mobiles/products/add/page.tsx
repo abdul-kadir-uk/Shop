@@ -11,6 +11,12 @@ interface ProductColor {
   name: string;
   isAvailable: boolean;
   price: string | number | null;
+
+  // Colour-specific description images
+  descriptionImages?: {
+    url: string;
+    key: string;
+  }[];
 }
 
 interface CameraData {
@@ -27,13 +33,25 @@ interface ProductFormData {
   variantName: string;
   variantGroupId: string;
 
-  // Specifications
+  // Basic specifications
   ram: string;
   storage: string;
   processor: string;
   display: string;
+
+  // Detailed specifications
+  simCardSlots: string;
+  connectorType: string;
+  batteryCapacity: string;
+  weight: string;
+  displayType: string;
+  screenSize: string;
+  networkSupport: string;
+  insideBox: string;
+
+  // Other specifications
   camera: CameraData;
-  battery: string;
+
   operatingSystem: string;
   warranty: string;
   charging: string;
@@ -96,13 +114,37 @@ export default function AddMobileProductPage() {
       }
 
       /* =====================================================
-         MOBILE SPECIFICATIONS
+         BASIC MOBILE SPECIFICATIONS
       ===================================================== */
 
       formData.append("ram", data.ram);
       formData.append("storage", data.storage);
       formData.append("processor", data.processor);
       formData.append("display", data.display);
+
+      /* =====================================================
+         DETAILED MOBILE SPECIFICATIONS
+      ===================================================== */
+
+      formData.append("simCardSlots", data.simCardSlots);
+
+      formData.append("connectorType", data.connectorType);
+
+      formData.append("batteryCapacity", data.batteryCapacity);
+
+      formData.append("weight", data.weight);
+
+      formData.append("displayType", data.displayType);
+
+      formData.append("screenSize", data.screenSize);
+
+      formData.append("networkSupport", data.networkSupport);
+
+      formData.append("insideBox", data.insideBox);
+
+      /* =====================================================
+         CAMERA
+      ===================================================== */
 
       // Backend expects camera as a JSON string because
       // this request uses multipart/form-data.
@@ -112,11 +154,17 @@ export default function AddMobileProductPage() {
       //   front: "12 MP",
       //   rear: "48 MP + 12 MP + 8 MP"
       // }
+
       formData.append("camera", JSON.stringify(data.camera));
 
-      formData.append("battery", data.battery);
+      /* =====================================================
+         OTHER SPECIFICATIONS
+      ===================================================== */
+
       formData.append("operatingSystem", data.operatingSystem);
+
       formData.append("warranty", data.warranty?.trim() || "");
+
       formData.append("charging", data.charging);
 
       /* =====================================================
@@ -128,19 +176,33 @@ export default function AddMobileProductPage() {
       //
       // null price means:
       // use the main product price.
+      //
+      // descriptionImages are included so colour-specific
+      // images can be preserved when ProductForm provides them.
 
       const colors = Array.isArray(data.colors)
         ? data.colors
             .filter((color) => color?.name?.trim())
             .map((color) => ({
               name: color.name.trim(),
+
               isAvailable: Boolean(color.isAvailable),
+
               price:
                 color.price === "" ||
                 color.price === undefined ||
                 color.price === null
                   ? null
                   : Number(color.price),
+
+              descriptionImages: Array.isArray(color.descriptionImages)
+                ? color.descriptionImages
+                    .filter((image) => image?.url)
+                    .map((image) => ({
+                      url: image.url,
+                      key: image.key || "",
+                    }))
+                : [],
             }))
         : [];
 
@@ -175,12 +237,11 @@ export default function AddMobileProductPage() {
       }
 
       /* =====================================================
-         DESCRIPTION IMAGES
+         GENERAL DESCRIPTION IMAGES
       ===================================================== */
 
-      // Images are appended individually.
-      // ProductForm allows selecting all 6 at once or
-      // adding them one by one.
+      // ProductForm allows selecting all description images
+      // at once or adding them one by one.
 
       descriptionImages.forEach((image) => {
         formData.append("descriptionImages", image);

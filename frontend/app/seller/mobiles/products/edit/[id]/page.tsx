@@ -1,4 +1,5 @@
 // app/seller/mobiles/products/edit/[id]/page.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -16,6 +17,7 @@ interface ProductColor {
   name: string;
   isAvailable: boolean;
   price: number | null;
+  descriptionImages?: ProductImage[];
 }
 
 interface CameraData {
@@ -38,15 +40,25 @@ interface MobileProduct {
   ram: string;
   storage: string;
 
-  colors: ProductColor[];
-
   processor: string;
   display: string;
+
+  simCardSlots: string;
+  connectorType: string;
+  batteryCapacity: string;
+  weight: string;
+  displayType: string;
+  screenSize: string;
+  networkSupport: string;
+  insideBox: string;
+
   camera: CameraData;
-  battery: string;
+
   operatingSystem: string;
   warranty: string;
   charging: string;
+
+  colors: ProductColor[];
 
   mainImage: ProductImage;
   descriptionImages: ProductImage[];
@@ -162,8 +174,24 @@ export default function EditMobileProductPage() {
 
       formData.append("display", data.display?.trim() || "");
 
+      formData.append("simCardSlots", data.simCardSlots?.trim() || "");
+
+      formData.append("connectorType", data.connectorType?.trim() || "");
+
+      formData.append("batteryCapacity", data.batteryCapacity?.trim() || "");
+
+      formData.append("weight", data.weight?.trim() || "");
+
+      formData.append("displayType", data.displayType?.trim() || "");
+
+      formData.append("screenSize", data.screenSize?.trim() || "");
+
+      formData.append("networkSupport", data.networkSupport?.trim() || "");
+
+      formData.append("insideBox", data.insideBox?.trim() || "");
+
       /*
-       * Camera is now an object:
+       * Camera is an object:
        *
        * {
        *   front: "...",
@@ -172,14 +200,13 @@ export default function EditMobileProductPage() {
        *
        * Send it as JSON because this request is multipart/form-data.
        */
+
       const camera: CameraData = {
         front: data.camera?.front?.trim() || "",
         rear: data.camera?.rear?.trim() || "",
       };
 
       formData.append("camera", JSON.stringify(camera));
-
-      formData.append("battery", data.battery?.trim() || "");
 
       formData.append("operatingSystem", data.operatingSystem?.trim() || "");
 
@@ -199,7 +226,12 @@ export default function EditMobileProductPage() {
 
               isAvailable: Boolean(color.isAvailable),
 
-              price: color.price === null ? null : Number(color.price),
+              price:
+                color.price === null || color.price === undefined
+                  ? null
+                  : Number(color.price),
+
+              descriptionImages: color.descriptionImages || [],
             }))
         : [];
 
@@ -354,24 +386,38 @@ export default function EditMobileProductPage() {
 
     storage: product.storage || "",
 
-    colors: product.colors || [],
-
     processor: product.processor || "",
 
     display: product.display || "",
+
+    simCardSlots: product.simCardSlots || "",
+
+    connectorType: product.connectorType || "",
+
+    batteryCapacity: product.batteryCapacity || "",
+
+    weight: product.weight || "",
+
+    displayType: product.displayType || "",
+
+    screenSize: product.screenSize || "",
+
+    networkSupport: product.networkSupport || "",
+
+    insideBox: product.insideBox || "",
 
     camera: {
       front: product.camera?.front || "",
       rear: product.camera?.rear || "",
     },
 
-    battery: product.battery || "",
-
     operatingSystem: product.operatingSystem || "",
 
     warranty: product.warranty || "",
 
     charging: product.charging || "",
+
+    colors: product.colors || [],
 
     price: product.price,
 

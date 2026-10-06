@@ -3,21 +3,22 @@
 
 import { useMemo, useState } from "react";
 import { ShoppingBag, ShoppingCart, Minus, Plus } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { isLoggedIn } from "@/lib/auth";
 import { addToMobileCart } from "@/lib/mobileCartApi";
 
+type ProductImage = {
+  url: string;
+  key?: string;
+};
+
 type MobileColor = {
   name: string;
   isAvailable: boolean;
   price: number | null;
-};
-
-type ProductImage = {
-  url: string;
-  key?: string;
+  descriptionImages?: ProductImage[];
 };
 
 type MobileVariant = {
@@ -46,17 +47,25 @@ type MobileProduct = {
   ram: string;
   storage: string;
 
-  colors: MobileColor[];
-
   processor: string;
   display: string;
+
+  simCardSlots: string;
+  connectorType: string;
+  batteryCapacity: string;
+  weight: string;
+  displayType: string;
+  screenSize: string;
+  networkSupport: string;
+  insideBox: string;
+
+  colors: MobileColor[];
 
   camera: {
     front: string;
     rear: string;
   };
 
-  battery: string;
   operatingSystem: string;
   warranty: string;
   charging: string;
@@ -75,20 +84,16 @@ type MobileProduct = {
 
 type ProductInfoProps = {
   product: MobileProduct;
+  selectedColorIndex: number;
+  onColorChange: (index: number) => void;
 };
 
-export default function ProductInfo({ product }: ProductInfoProps) {
+export default function ProductInfo({
+  product,
+  selectedColorIndex,
+  onColorChange,
+}: ProductInfoProps) {
   const router = useRouter();
-
-  useParams<{ slug: string }>();
-
-  const [selectedColorIndex, setSelectedColorIndex] = useState<number>(() => {
-    const firstAvailableIndex = product.colors?.findIndex(
-      (color) => color.isAvailable,
-    );
-
-    return firstAvailableIndex >= 0 ? firstAvailableIndex : -1;
-  });
 
   const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
 
@@ -116,9 +121,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
   // ==========================================================
   // ORIGINAL PRODUCT PRICE
-  //
-  // This always remains the product's main price.
-  // Example: ₹92,999
   // ==========================================================
 
   const originalPrice = useMemo(() => {
@@ -127,9 +129,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
   // ==========================================================
   // CURRENT COLOR PRICE
-  //
-  // If selected color has its own price, that price becomes
-  // the selling price for that selected color.
   // ==========================================================
 
   const currentPrice = useMemo(() => {
@@ -142,30 +141,13 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
   // ==========================================================
   // CURRENT DISCOUNT
-  //
-  // Color price has priority.
-  //
-  // Example:
-  // Product price = ₹92,999
-  // Blue color price = ₹89,999
-  //
-  // Selling price = ₹89,999
-  // Original price = ₹92,999
-  //
-  // If color does not have a special price, then use the
-  // normal product discountPrice.
   // ==========================================================
 
   const currentDiscountPrice = useMemo(() => {
-    // Selected color has its own price.
-    // Treat that color price as the discounted/selling price
-    // only when it is lower than the original product price.
     if (hasColorPrice && currentPrice < originalPrice) {
       return currentPrice;
     }
 
-    // No color-specific price.
-    // Use normal product discount price.
     if (
       !hasColorPrice &&
       product.discountPrice !== null &&
@@ -215,7 +197,9 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       return;
     }
 
-    setSelectedColorIndex(index);
+    // Selected color is now controlled by the parent page.
+    onColorChange(index);
+
     setSelectedQuantity(1);
     setMessage("");
   };
@@ -314,12 +298,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         quantity: String(selectedQuantity),
       });
 
-      // IMPORTANT:
-      // Pass the selected color to Buy Now checkout.
-      //
-      // Without this, checkout does not know which color
-      // the customer selected and therefore cannot use the
-      // color-specific selling price.
+      // Pass selected color to Buy Now checkout.
       if (selectedColor?.name) {
         params.set("color", selectedColor.name);
       }
@@ -403,98 +382,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
                 );
               })}
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* ====================================================
-          MOBILE SPECIFICATIONS
-      ==================================================== */}
-
-      <div className="space-y-3 rounded-xl border bg-white p-5">
-        <h2 className="mb-3 text-lg font-semibold">Specifications</h2>
-
-        {product.ram && (
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">RAM</span>
-            <span className="font-medium">{product.ram}</span>
-          </div>
-        )}
-
-        {product.storage && (
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">Storage</span>
-            <span className="font-medium">{product.storage}</span>
-          </div>
-        )}
-
-        {product.processor && (
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">Processor</span>
-            <span className="max-w-[60%] text-right font-medium">
-              {product.processor}
-            </span>
-          </div>
-        )}
-
-        {product.display && (
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">Display</span>
-            <span className="max-w-[60%] text-right font-medium">
-              {product.display}
-            </span>
-          </div>
-        )}
-
-        {product.camera?.front && (
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">Front Camera</span>
-            <span className="max-w-[60%] text-right font-medium">
-              {product.camera.front}
-            </span>
-          </div>
-        )}
-
-        {product.camera?.rear && (
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">Rear Camera</span>
-            <span className="max-w-[60%] text-right font-medium">
-              {product.camera.rear}
-            </span>
-          </div>
-        )}
-
-        {product.battery && (
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">Battery</span>
-            <span className="font-medium">{product.battery}</span>
-          </div>
-        )}
-
-        {product.operatingSystem && (
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">Operating System</span>
-            <span className="max-w-[60%] text-right font-medium">
-              {product.operatingSystem}
-            </span>
-          </div>
-        )}
-
-        {product.charging && (
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">Charging</span>
-            <span className="max-w-[60%] text-right font-medium">
-              {product.charging}
-            </span>
-          </div>
-        )}
-
-        {product.warranty && (
-          <div className="flex justify-between">
-            <span className="text-gray-500">Warranty</span>
-            <span className="max-w-[60%] text-right font-medium">
-              {product.warranty}
-            </span>
           </div>
         )}
       </div>
@@ -689,6 +576,163 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         <p className="whitespace-pre-line leading-7 text-gray-700">
           {product.description || "No description available."}
         </p>
+      </div>
+
+      {/* ====================================================
+          MOBILE SPECIFICATIONS
+      ==================================================== */}
+
+      <div className="space-y-3 rounded-xl border bg-white p-5">
+        <h2 className="mb-3 text-lg font-semibold">Specifications</h2>
+
+        {product.ram && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">RAM</span>
+            <span className="font-medium">{product.ram}</span>
+          </div>
+        )}
+
+        {product.storage && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Storage</span>
+            <span className="font-medium">{product.storage}</span>
+          </div>
+        )}
+
+        {product.processor && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Processor</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.processor}
+            </span>
+          </div>
+        )}
+
+        {product.display && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Display</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.display}
+            </span>
+          </div>
+        )}
+
+        {product.displayType && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Display Type</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.displayType}
+            </span>
+          </div>
+        )}
+
+        {product.screenSize && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Screen Size</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.screenSize}
+            </span>
+          </div>
+        )}
+
+        {product.networkSupport && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Network Support</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.networkSupport}
+            </span>
+          </div>
+        )}
+
+        {product.simCardSlots && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">SIM Card Slots</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.simCardSlots}
+            </span>
+          </div>
+        )}
+
+        {product.connectorType && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Connector Type</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.connectorType}
+            </span>
+          </div>
+        )}
+
+        {product.batteryCapacity && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Battery Capacity</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.batteryCapacity}
+            </span>
+          </div>
+        )}
+
+        {product.weight && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Weight</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.weight}
+            </span>
+          </div>
+        )}
+
+        {product.camera?.front && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Front Camera</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.camera.front}
+            </span>
+          </div>
+        )}
+
+        {product.camera?.rear && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Rear Camera</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.camera.rear}
+            </span>
+          </div>
+        )}
+
+        {product.operatingSystem && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Operating System</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.operatingSystem}
+            </span>
+          </div>
+        )}
+
+        {product.charging && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Charging</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.charging}
+            </span>
+          </div>
+        )}
+
+        {product.warranty && (
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-500">Warranty</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {product.warranty}
+            </span>
+          </div>
+        )}
+
+        {product.insideBox && (
+          <div className="flex justify-between">
+            <span className="text-gray-500">Inside the Box</span>
+            <span className="max-w-[60%] whitespace-pre-line text-right font-medium">
+              {product.insideBox}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
