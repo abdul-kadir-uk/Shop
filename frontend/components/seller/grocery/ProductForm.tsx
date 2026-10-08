@@ -274,6 +274,8 @@ export default function ProductForm({
             <option> Chips, Namkeen and Snacks </option>
             <option> Choclates </option>
             <option> Biscuits </option>
+            <option> cakes </option>
+            <option> bakery </option>
           </select>
         </div>
 
