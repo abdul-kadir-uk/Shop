@@ -1,7 +1,6 @@
-// components/groceries/ProductGrid.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ProductCard from "./ProductCard";
 import { getAllGroceries } from "@/lib/groceryApi";
 
@@ -48,6 +47,9 @@ export default function ProductGrid({ filters, search }: ProductGridProps) {
 
   // Determines whether there are more products available
   const [hasMore, setHasMore] = useState(true);
+
+  // Element observed by IntersectionObserver
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const fetchProducts = async (pageNumber: number, loadMore = false) => {
     try {
@@ -102,7 +104,7 @@ export default function ProductGrid({ filters, search }: ProductGridProps) {
 
         /*
          * If the API returns fewer products than the requested limit,
-         * we know there are no more products to load.
+         * there are no more products to load.
          */
         setHasMore(newProducts.length === PRODUCTS_PER_PAGE);
       }
@@ -128,30 +130,69 @@ export default function ProductGrid({ filters, search }: ProductGridProps) {
   }, [filters, search]);
 
   /*
-   * Load the next page.
+   * Automatically load the next page when the user
+   * gets near the bottom of the product list.
    */
-  const handleLoadMore = async () => {
-    if (loadingMore || !hasMore) {
+  useEffect(() => {
+    const element = loadMoreRef.current;
+
+    if (!element || !hasMore || loading || loadingMore) {
       return;
     }
 
-    const nextPage = page + 1;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
 
-    await fetchProducts(nextPage, true);
+        if (!firstEntry.isIntersecting) {
+          return;
+        }
 
-    setPage(nextPage);
-  };
+        if (loadingMore || !hasMore) {
+          return;
+        }
+
+        const nextPage = page + 1;
+
+        setPage(nextPage);
+        fetchProducts(nextPage, true);
+      },
+      {
+        root: null,
+        rootMargin: "300px",
+        threshold: 0,
+      },
+    );
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [page, hasMore, loading, loadingMore, filters, search]);
 
   return (
     <section className="w-full min-w-0">
       {/* Heading */}
       <h1 className="mb-4 text-xl font-semibold text-gray-900 sm:text-2xl">
-        Grocery Products
+        {filters.category || "Grocery Products"}
       </h1>
 
-      {/* Loading */}
+      {/* Initial Loading */}
       {loading ? (
-        <div className="py-10 text-center">Loading products...</div>
+        <div className="flex justify-center py-10">
+          <div
+            className="
+              h-8
+              w-8
+              animate-spin
+              rounded-full
+              border-4
+              border-gray-200
+              border-t-black
+            "
+          />
+        </div>
       ) : products.length === 0 ? (
         /* Empty State */
         <div className="py-10 text-center text-gray-500">
@@ -180,29 +221,32 @@ export default function ProductGrid({ filters, search }: ProductGridProps) {
             ))}
           </div>
 
-          {/* Load More */}
+          {/* Infinite Scroll Loader */}
           {hasMore && (
-            <div className="mt-8 flex justify-center pb-6">
-              <button
-                type="button"
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="
-                  rounded-lg
-                  bg-black
-                  px-6
-                  py-3
-                  text-sm
-                  font-semibold
-                  text-white
-                  transition
-                  hover:bg-gray-800
-                  disabled:cursor-not-allowed
-                  disabled:opacity-60
-                "
-              >
-                {loadingMore ? "Loading products..." : "Load More Products"}
-              </button>
+            <div
+              ref={loadMoreRef}
+              className="flex min-h-24 items-center justify-center py-8"
+            >
+              {loadingMore && (
+                <div
+                  className="
+                    h-8
+                    w-8
+                    animate-spin
+                    rounded-full
+                    border-4
+                    border-gray-200
+                    border-t-black
+                  "
+                />
+              )}
+            </div>
+          )}
+
+          {/* End of Products */}
+          {!hasMore && products.length > 0 && (
+            <div className="py-8 text-center text-sm text-gray-400">
+              No more products
             </div>
           )}
         </>

@@ -1,13 +1,18 @@
-// app/groceries/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import GroceryCategories from "@/components/groceries/product listing/GroceryCategories";
 import GroceryFilters from "@/components/groceries/product listing/GroceryFilters";
 import GrocerySearch from "@/components/groceries/product listing/GrocerySearch";
+import GroceryCategoryProducts from "@/components/groceries/product listing/GroceryCategoryProducts";
 import ProductGrid from "@/components/groceries/product listing/ProductGrid";
 
 export default function GroceriesPage() {
-  // Applied filters
+  const searchParams = useSearchParams();
+
+  const selectedCategory = searchParams.get("category") || "";
+
   const [filters, setFilters] = useState({
     category: "",
     subCategory: "",
@@ -16,14 +21,19 @@ export default function GroceriesPage() {
     sort: "latest",
   });
 
-  // Search input
   const [searchInput, setSearchInput] = useState("");
-
-  // Applied search
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      category: selectedCategory,
+    }));
+  }, [selectedCategory]);
 
   return (
     <div className="space-y-3">
+      {/* Filters + Search */}
       <div className="lg:flex">
         <div className="mr-1 mb-1 flex-3">
           <GroceryFilters filters={filters} setFilters={setFilters} />
@@ -38,6 +48,19 @@ export default function GroceriesPage() {
         </div>
       </div>
 
+      {/* Category Names */}
+      <GroceryCategories filters={filters} />
+
+      {/* 
+        Show category-wise preview sections ONLY on the
+        normal groceries page.
+
+        When a category is selected through "See All",
+        these sections disappear.
+      */}
+      {!selectedCategory && <GroceryCategoryProducts />}
+
+      {/* Main Product Grid */}
       <ProductGrid filters={filters} search={search} />
     </div>
   );

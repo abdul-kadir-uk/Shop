@@ -128,6 +128,7 @@ export default function GroceryFilters({
                 className="h-10 w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 pr-8 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
               >
                 <option value="">All Categories</option>
+
                 <option value="Rice and Grains"> Rice </option>
                 <option> flour and staples </option>
                 <option> Pulses </option>
@@ -137,6 +138,7 @@ export default function GroceryFilters({
                 <option> Tea, Coffee and Beverages </option>
                 <option> Sugar, Salt and Pickles </option>
                 <option> Personal & Household Care </option>
+                <option> Dairy Products </option>
               </select>
 
               <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />

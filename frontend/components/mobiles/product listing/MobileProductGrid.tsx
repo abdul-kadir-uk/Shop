@@ -1,8 +1,6 @@
-// components/mobiles/product listing/MobileProductGrid.tsx
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import MobileProductCard from "./MobileProductCard";
 import api from "@/lib/api";
@@ -79,6 +77,9 @@ export default function MobileProductGrid({
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  // Element observed by IntersectionObserver
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   // Add to cart state
   const [addingProductId, setAddingProductId] = useState<string | null>(null);
@@ -264,17 +265,47 @@ export default function MobileProductGrid({
     fetchProducts(1, false);
   }, [filters, search]);
 
-  const handleLoadMore = async () => {
-    if (loadingMore || !hasMore) {
+  /*
+   * Automatically load the next page when the user
+   * gets near the bottom of the product list.
+   */
+  useEffect(() => {
+    const element = loadMoreRef.current;
+
+    if (!element || !hasMore || loading || loadingMore) {
       return;
     }
 
-    const nextPage = page + 1;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
 
-    await fetchProducts(nextPage, true);
+        if (!firstEntry.isIntersecting) {
+          return;
+        }
 
-    setPage(nextPage);
-  };
+        if (loadingMore || !hasMore) {
+          return;
+        }
+
+        const nextPage = page + 1;
+
+        setPage(nextPage);
+        fetchProducts(nextPage, true);
+      },
+      {
+        root: null,
+        rootMargin: "300px",
+        threshold: 0,
+      },
+    );
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [page, hasMore, loading, loadingMore, filters, search]);
 
   return (
     <section className="w-full min-w-0">
@@ -290,10 +321,20 @@ export default function MobileProductGrid({
         </div>
       )}
 
-      {/* Loading */}
+      {/* Initial Loading */}
       {loading ? (
-        <div className="py-10 text-center text-gray-500">
-          Loading mobiles...
+        <div className="flex justify-center py-10">
+          <div
+            className="
+              h-8
+              w-8
+              animate-spin
+              rounded-full
+              border-4
+              border-gray-200
+              border-t-blue-600
+            "
+          />
         </div>
       ) : products.length === 0 ? (
         <div className="py-10 text-center text-gray-500">No mobiles found.</div>
@@ -320,29 +361,32 @@ export default function MobileProductGrid({
             ))}
           </div>
 
-          {/* Load More */}
+          {/* Infinite Scroll Loader */}
           {hasMore && (
-            <div className="mt-8 flex justify-center pb-6">
-              <button
-                type="button"
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="
-                  rounded-lg
-                  bg-blue-600
-                  px-6
-                  py-3
-                  text-sm
-                  font-semibold
-                  text-white
-                  transition
-                  hover:bg-blue-700
-                  disabled:cursor-not-allowed
-                  disabled:opacity-60
-                "
-              >
-                {loadingMore ? "Loading mobiles..." : "Load More Mobiles"}
-              </button>
+            <div
+              ref={loadMoreRef}
+              className="flex min-h-24 items-center justify-center py-8"
+            >
+              {loadingMore && (
+                <div
+                  className="
+                    h-8
+                    w-8
+                    animate-spin
+                    rounded-full
+                    border-4
+                    border-gray-200
+                    border-t-blue-600
+                  "
+                />
+              )}
+            </div>
+          )}
+
+          {/* End of Products */}
+          {!hasMore && products.length > 0 && (
+            <div className="py-8 text-center text-sm text-gray-400">
+              No more mobiles
             </div>
           )}
         </>

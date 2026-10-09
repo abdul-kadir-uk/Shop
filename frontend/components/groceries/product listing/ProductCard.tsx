@@ -1,4 +1,4 @@
-// components/groceries/ProductCard.tsx
+// components/groceries/product listing/ProductCard.tsx
 
 "use client";
 
