@@ -53,6 +53,8 @@ type Pricing = {
   discount: number;
   deliveryCharge: number;
   total: number;
+  promoCode?: string | null;
+  promoDiscount?: number;
 };
 
 type CheckoutOrder = {
@@ -69,11 +71,8 @@ type CheckoutOrder = {
 
 type CheckoutData = {
   type: "cart" | "buyNow";
-
   customer: Customer;
-
   cities: City[];
-
   order: CheckoutOrder;
 
   paymentMethods: {
@@ -100,6 +99,42 @@ function GroceryCheckoutContent() {
   const [error, setError] = useState("");
   const [orderError, setOrderError] = useState("");
 
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromoCode, setAppliedPromoCode] = useState("");
+  const [promoMessage, setPromoMessage] = useState("");
+  const [promoError, setPromoError] = useState("");
+  const [applyingPromo, setApplyingPromo] = useState(false);
+
+  // ======================================================
+  // Checkout Parameters
+  // ======================================================
+
+  const getCheckoutParams = () => {
+    const typeParam = searchParams.get("type");
+    const type: "cart" | "buyNow" = typeParam === "buyNow" ? "buyNow" : "cart";
+
+    const productId = searchParams.get("productId") || undefined;
+
+    const quantityParam = searchParams.get("quantity");
+    const quantity =
+      quantityParam && Number(quantityParam) > 0 ? Number(quantityParam) : 1;
+
+    const variantIndexParam = searchParams.get("variantIndex");
+    const variantIndex =
+      variantIndexParam !== null ? Number(variantIndexParam) : -1;
+
+    return {
+      type,
+      ...(type === "buyNow"
+        ? {
+            productId,
+            variantIndex,
+            quantity,
+          }
+        : {}),
+    };
+  };
+
   // ======================================================
   // Load Checkout
   // ======================================================
@@ -115,48 +150,7 @@ function GroceryCheckoutContent() {
         setLoading(true);
         setError("");
 
-        // --------------------------------------------------
-        // Checkout Type
-        // --------------------------------------------------
-
-        const typeParam = searchParams.get("type");
-
-        const type: "cart" | "buyNow" =
-          typeParam === "buyNow" ? "buyNow" : "cart";
-
-        // --------------------------------------------------
-        // Buy Now Parameters
-        // --------------------------------------------------
-
-        const productId = searchParams.get("productId") || undefined;
-
-        const quantityParam = searchParams.get("quantity");
-
-        const quantity =
-          quantityParam && Number(quantityParam) > 0
-            ? Number(quantityParam)
-            : 1;
-
-        const variantIndexParam = searchParams.get("variantIndex");
-
-        const variantIndex =
-          variantIndexParam !== null ? Number(variantIndexParam) : -1;
-
-        // --------------------------------------------------
-        // Fetch Checkout Summary
-        // --------------------------------------------------
-
-        const response = await getCheckoutSummary({
-          type,
-
-          ...(type === "buyNow"
-            ? {
-                productId,
-                variantIndex,
-                quantity,
-              }
-            : {}),
-        });
+        const response = await getCheckoutSummary(getCheckoutParams());
 
         if (!response.success) {
           setError(response.message || "Unable to load checkout.");
@@ -172,10 +166,6 @@ function GroceryCheckoutContent() {
         if (kashipur) {
           setSelectedCity(kashipur._id);
         }
-
-        // --------------------------------------------------
-        // Use Saved Customer Address
-        // --------------------------------------------------
 
         if (response.data.customer?.address) {
           setAddress(response.data.customer.address);
@@ -213,41 +203,32 @@ function GroceryCheckoutContent() {
     const deliveryCharge = selectedCityData?.deliveryCharge ?? 0;
 
     /*
-     * IMPORTANT:
+     * The subtotal already uses product selling prices.
+     * Do not subtract product discounts again.
      *
-     * data.order.pricing.subtotal is already calculated using
-     * the selling price.
-     *
-     * If a product has a discount:
-     *
-     * original price = ₹100
-     * discount price = ₹80
-     *
-     * subtotal for quantity 1 = ₹80
-     *
-     * Therefore, we must NOT do:
-     *
-     * subtotal - discount
-     *
-     * because that would subtract the discount twice.
-     *
-     * Correct calculation:
-     *
-     * total = already-discounted subtotal + delivery charge
+     * Final total:
+     * subtotal + delivery charge - promo discount
      */
 
     const subtotal = data.order.pricing.subtotal;
     const discount = data.order.pricing.discount;
+    const promoDiscount = data.order.pricing.promoDiscount ?? 0;
 
-    const total = subtotal + deliveryCharge;
+    const total = Math.max(0, subtotal + deliveryCharge - promoDiscount);
 
     return {
       subtotal,
       discount,
       deliveryCharge,
+      promoCode: data.order.pricing.promoCode ?? null,
+      promoDiscount,
       total,
     };
   }, [data, selectedCity]);
+
+  // ======================================================
+  // Grocery Cities: Kashipur Only
+  // ======================================================
 
   const groceryCities = useMemo(() => {
     if (!data) {
@@ -269,6 +250,94 @@ function GroceryCheckoutContent() {
   };
 
   // ======================================================
+  // Apply Promo Code
+  // Called by the Apply button in CheckoutSummary
+  // ======================================================
+
+  const handleApplyPromo = async (selectedCode?: string) => {
+    const code = (selectedCode ?? promoInput).trim().toUpperCase();
+
+    setPromoMessage("");
+    setPromoError("");
+
+    if (!code) {
+      setPromoError("Please select a promo code.");
+      return;
+    }
+
+    try {
+      setApplyingPromo(true);
+
+      const response = await getCheckoutSummary({
+        ...getCheckoutParams(),
+        promoCode: code,
+      });
+
+      if (!response.success) {
+        setPromoError(response.message || "Unable to apply promo code.");
+        return;
+      }
+
+      const returnedCode = response.data.order.pricing.promoCode || "";
+
+      const returnedDiscount = response.data.order.pricing.promoDiscount || 0;
+
+      if (!returnedCode || returnedDiscount <= 0) {
+        setPromoError("The promo code could not be applied.");
+        return;
+      }
+
+      setData(response.data);
+      setAppliedPromoCode(returnedCode);
+      setPromoInput(returnedCode);
+
+      setPromoMessage(
+        `${returnedCode} applied successfully. You save ₹${returnedDiscount}.`,
+      );
+
+      setPromoError("");
+    } catch (err: any) {
+      setPromoError(
+        err?.response?.data?.message || "Unable to apply promo code.",
+      );
+    } finally {
+      setApplyingPromo(false);
+    }
+  };
+
+  // ======================================================
+  // Remove Promo Code
+  // ======================================================
+
+  const handleRemovePromo = async () => {
+    setPromoError("");
+    setPromoMessage("");
+
+    try {
+      setApplyingPromo(true);
+
+      const response = await getCheckoutSummary(getCheckoutParams());
+
+      if (!response.success) {
+        setPromoError(response.message || "Unable to remove promo code.");
+        return;
+      }
+
+      setData(response.data);
+      setAppliedPromoCode("");
+      setPromoInput("");
+      setPromoMessage("");
+      setPromoError("");
+    } catch (err: any) {
+      setPromoError(
+        err?.response?.data?.message || "Unable to remove promo code.",
+      );
+    } finally {
+      setApplyingPromo(false);
+    }
+  };
+
+  // ======================================================
   // Place Order
   // ======================================================
 
@@ -277,27 +346,15 @@ function GroceryCheckoutContent() {
 
     setOrderError("");
 
-    // --------------------------------------------------
-    // Validate City
-    // --------------------------------------------------
-
     if (!selectedCity) {
       setOrderError("Please select your city.");
       return;
     }
 
-    // --------------------------------------------------
-    // Validate Address
-    // --------------------------------------------------
-
     if (!address.trim()) {
       setOrderError("Please enter your delivery address.");
       return;
     }
-
-    // --------------------------------------------------
-    // Validate Alternate Mobile
-    // --------------------------------------------------
 
     if (
       alternateMobile.trim() &&
@@ -310,30 +367,20 @@ function GroceryCheckoutContent() {
     try {
       setPlacingOrder(true);
 
-      // --------------------------------------------------
-      // Buy Now Parameters
-      // --------------------------------------------------
-
       const productId = searchParams.get("productId") || undefined;
-
       const variantIndexParam = searchParams.get("variantIndex");
-
       const quantityParam = searchParams.get("quantity");
-
-      // --------------------------------------------------
-      // Place Order
-      // --------------------------------------------------
 
       const response = await placeOrder({
         type: data.type,
 
+        ...(appliedPromoCode ? { promoCode: appliedPromoCode } : {}),
+
         ...(data.type === "buyNow"
           ? {
               productId,
-
               variantIndex:
                 variantIndexParam !== null ? Number(variantIndexParam) : -1,
-
               quantity:
                 quantityParam && Number(quantityParam) > 0
                   ? Number(quantityParam)
@@ -342,15 +389,10 @@ function GroceryCheckoutContent() {
           : {}),
 
         cityId: selectedCity,
-
         address: address.trim(),
 
-        // IMPORTANT:
-        // Only send alternateMobile when provided.
         ...(alternateMobile.trim()
-          ? {
-              alternateMobile: alternateMobile.trim(),
-            }
+          ? { alternateMobile: alternateMobile.trim() }
           : {}),
 
         paymentMethod,
@@ -361,17 +403,9 @@ function GroceryCheckoutContent() {
         return;
       }
 
-      // --------------------------------------------------
-      // Cart Checkout
-      // --------------------------------------------------
-
       if (data.type === "cart") {
         window.dispatchEvent(new Event("cart-updated"));
       }
-
-      // --------------------------------------------------
-      // Order Success
-      // --------------------------------------------------
 
       if (response.order?.id) {
         router.push(`/groceries/orders/${response.order.id}`);
@@ -510,12 +544,55 @@ function GroceryCheckoutContent() {
         {/* Right */}
 
         <div className="lg:sticky lg:top-5 lg:self-start">
+          {/* Enter Promo Code */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h3 className="mb-3 font-semibold text-gray-900">
+              Have a promo code?
+            </h3>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={promoInput}
+                onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                placeholder="Enter promo code"
+                disabled={applyingPromo || !!appliedPromoCode}
+                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 disabled:bg-gray-100"
+              />
+
+              <button
+                type="button"
+                onClick={() => handleApplyPromo(promoInput)}
+                disabled={
+                  applyingPromo || !!appliedPromoCode || !promoInput.trim()
+                }
+                className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {applyingPromo ? "Applying..." : "Apply"}
+              </button>
+            </div>
+
+            {promoError && (
+              <p className="mt-2 text-sm text-red-600">{promoError}</p>
+            )}
+
+            {promoMessage && (
+              <p className="mt-2 text-sm text-green-700">{promoMessage}</p>
+            )}
+          </div>
+
           <CheckoutSummary
             items={data.order.items}
             pricing={checkoutPricing || data.order.pricing}
+            appliedPromoCode={appliedPromoCode}
+            applyingPromo={applyingPromo}
+            promoMessage={promoMessage}
+            promoError={promoError}
+            onApplyPromo={handleApplyPromo}
+            onRemovePromo={handleRemovePromo}
           />
 
-          {/* Error */}
+          {/* Order Error */}
 
           {orderError && (
             <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">

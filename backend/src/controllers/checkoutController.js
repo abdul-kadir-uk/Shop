@@ -7,6 +7,8 @@ import {
   buildCartSummary,
 } from "../services/order/orderService.js";
 
+import { calculatePromo } from "../services/order/promoService.js";
+
 /* ==========================================================
    Minimum Order Value
 ========================================================== */
@@ -38,7 +40,13 @@ export const getCheckoutSummary = async (req, res) => {
       });
     }
 
-    const { type, productId, variantIndex = -1, quantity = 1 } = req.body;
+    const {
+      type,
+      productId,
+      variantIndex = -1,
+      quantity = 1,
+      promoCode,
+    } = req.body;
 
     let summary;
 
@@ -72,6 +80,21 @@ export const getCheckoutSummary = async (req, res) => {
       });
     }
 
+    const promo = await calculatePromo({
+      promoCode,
+      customerId: customer._id,
+      subtotal: summary.pricing.subtotal,
+    });
+
+    summary.promoCode = promo.promoCode;
+    summary.promoDiscount = promo.promoDiscount;
+    summary.pricing.promoCode = promo.promoCode;
+    summary.pricing.promoDiscount = promo.promoDiscount;
+    summary.pricing.total = Math.max(
+      0,
+      summary.pricing.total - promo.promoDiscount,
+    );
+
     const cities = await City.find({
       isActive: true,
     })
@@ -102,7 +125,7 @@ export const getCheckoutSummary = async (req, res) => {
   } catch (error) {
     console.error("Checkout Summary Error:", error);
 
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Failed to fetch checkout summary.",
     });

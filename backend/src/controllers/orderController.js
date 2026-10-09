@@ -21,6 +21,8 @@ import {
   notifyAdminOrderCancelled,
 } from "../services/telegram/telegramNotificationService.js";
 
+import { calculatePromo } from "../services/order/promoService.js";
+
 /* ==========================================================
    Place Order
 ========================================================== */
@@ -82,6 +84,7 @@ export const placeOrder = async (req, res) => {
       address,
       alternateMobile,
       paymentMethod,
+      promoCode,
     } = req.body;
 
     // --------------------------------------------------
@@ -192,6 +195,15 @@ export const placeOrder = async (req, res) => {
       });
     }
 
+    const promo = await calculatePromo({
+      promoCode,
+      customerId: customer._id,
+      subtotal: summary.pricing.subtotal,
+      session,
+    });
+
+    const finalTotal = Math.max(0, summary.pricing.total - promo.promoDiscount);
+
     // --------------------------------------------------
     // Generate ONE order number
     // --------------------------------------------------
@@ -260,7 +272,9 @@ export const placeOrder = async (req, res) => {
             subtotal: summary.pricing.subtotal,
             discount: summary.pricing.discount || 0,
             deliveryCharge: summary.pricing.deliveryCharge || 0,
-            total: summary.pricing.total,
+            promoCode: promo.promoCode,
+            promoDiscount: promo.promoDiscount,
+            total: finalTotal,
           },
 
           paymentMethod,
@@ -320,7 +334,7 @@ export const placeOrder = async (req, res) => {
 
     console.error("Place Order Error:", error);
 
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Failed to place order.",
     });

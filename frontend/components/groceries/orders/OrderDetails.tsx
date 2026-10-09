@@ -23,6 +23,8 @@ type OrderDetailsProps = {
     discount: number;
     deliveryCharge: number;
     total: number;
+    promoCode?: string | null;
+    promoDiscount?: number;
   };
 
   paymentMethod: string;
@@ -36,6 +38,8 @@ export default function OrderDetails({
   paymentMethod,
   paymentStatus,
 }: OrderDetailsProps) {
+  const promoDiscount = pricing.promoDiscount ?? 0;
+
   return (
     <div className="space-y-5">
       {/* Delivery Address */}
@@ -117,21 +121,40 @@ export default function OrderDetails({
         </h2>
 
         <div className="space-y-3 text-sm">
-          <div className="flex justify-between">
+          {/* Product subtotal */}
+          <div className="flex justify-between gap-4">
             <span className="text-gray-500">Subtotal</span>
 
             <span className="font-medium">₹{pricing.subtotal}</span>
           </div>
 
-          <div className="flex justify-between">
-            <span className="text-gray-500">Discount</span>
+          {/* Existing product discount */}
+          {pricing.discount > 0 && (
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-500">Product Discount</span>
 
-            <span className="font-medium text-green-600">
-              -₹{pricing.discount}
-            </span>
-          </div>
+              <span className="font-medium text-green-600">
+                -₹{pricing.discount}
+              </span>
+            </div>
+          )}
 
-          <div className="flex justify-between">
+          {/* Promo code discount */}
+          {promoDiscount > 0 && (
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-500">
+                Promo Discount
+                {pricing.promoCode ? ` (${pricing.promoCode})` : ""}
+              </span>
+
+              <span className="font-medium text-green-600">
+                -₹{promoDiscount}
+              </span>
+            </div>
+          )}
+
+          {/* Delivery charge */}
+          <div className="flex justify-between gap-4">
             <span className="text-gray-500">Delivery Charge</span>
 
             <span className="font-medium">
@@ -141,7 +164,8 @@ export default function OrderDetails({
             </span>
           </div>
 
-          <div className="flex justify-between border-t pt-3 text-base">
+          {/* Final saved order total */}
+          <div className="flex justify-between gap-4 border-t pt-3 text-base">
             <span className="font-semibold">Total</span>
 
             <span className="text-xl font-bold text-green-600">

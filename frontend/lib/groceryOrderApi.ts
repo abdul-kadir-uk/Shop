@@ -34,6 +34,7 @@ export const getCheckoutSummary = async (payload: {
   productId?: string;
   variantIndex?: number;
   quantity?: number;
+  promoCode?: string;
 }) => {
   const { data } = await groceryOrderApi.post("/checkout/summary", payload);
 
@@ -54,6 +55,7 @@ export const placeOrder = async (payload: {
   address: string;
   alternateMobile?: string;
   paymentMethod: "COD";
+  promoCode?: string;
 }) => {
   const { data } = await groceryOrderApi.post("/orders", payload);
 
