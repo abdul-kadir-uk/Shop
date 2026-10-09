@@ -1,6 +1,7 @@
+// app/groceries/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import GroceryCategories from "@/components/groceries/product listing/GroceryCategories";
 import GroceryFilters from "@/components/groceries/product listing/GroceryFilters";
@@ -8,7 +9,7 @@ import GrocerySearch from "@/components/groceries/product listing/GrocerySearch"
 import GroceryCategoryProducts from "@/components/groceries/product listing/GroceryCategoryProducts";
 import ProductGrid from "@/components/groceries/product listing/ProductGrid";
 
-export default function GroceriesPage() {
+function GroceriesContent() {
   const searchParams = useSearchParams();
 
   const selectedCategory = searchParams.get("category") || "";
@@ -51,17 +52,19 @@ export default function GroceriesPage() {
       {/* Category Names */}
       <GroceryCategories filters={filters} />
 
-      {/* 
-        Show category-wise preview sections ONLY on the
-        normal groceries page.
-
-        When a category is selected through "See All",
-        these sections disappear.
-      */}
+      {/* Show category previews only on the normal groceries page */}
       {!selectedCategory && <GroceryCategoryProducts />}
 
       {/* Main Product Grid */}
       <ProductGrid filters={filters} search={search} />
     </div>
+  );
+}
+
+export default function GroceriesPage() {
+  return (
+    <Suspense fallback={<div className="space-y-3">Loading groceries...</div>}>
+      <GroceriesContent />
+    </Suspense>
   );
 }
