@@ -208,7 +208,7 @@ export default function ProductGrid({ filters, search }: ProductGridProps) {
               min-w-0
               grid-cols-1
               gap-3
-              min-[400px]:grid-cols-2
+              min-[270px]:grid-cols-2
               sm:gap-4
               sm:grid-cols-3
               md:grid-cols-4
