@@ -57,10 +57,7 @@ export default function GroceryNavbar() {
       {/* Main Navbar */}
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-3 py-3 sm:px-4 lg:px-8">
         {/* Logo */}
-        <Link
-          href="/groceries"
-          className="text-lg font-bold text-green-600 sm:text-xl"
-        >
+        <Link href="/" className="text-lg font-bold text-green-600 sm:text-xl">
           aliauf.com
         </Link>
 
