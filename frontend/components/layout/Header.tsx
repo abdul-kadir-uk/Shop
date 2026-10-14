@@ -6,12 +6,12 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/">
-          <h1 className="text-2xl font-bold text-green-600 cursor-pointer">
+          <h1 className="text-lg sm:text-2xl font-bold text-green-600 cursor-pointer">
             aliauf.com
           </h1>
         </Link>
 
-        <nav className="flex gap-6 font-medium">
+        <nav className="flex gap-6 font-medium text-sm sm:text-lg">
           <Link href="/about" className="hover:text-green-600 transition">
             About
           </Link>

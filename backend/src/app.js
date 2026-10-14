@@ -2,24 +2,36 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import sellerRoutes from "./routes/sellerRoutes.js";
 import deliveryRoutes from "./routes/deliveryRoutes.js";
+
 import groceryProductRoutes from "./routes/groceryProductRoutes.js";
+import medicineProductRoutes from "./routes/medicineProductRoutes.js";
 import mobileProductRoutes from "./routes/mobileProductRoutes.js";
+
 import groceriesRoutes from "./routes/groceriesRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
 import checkoutRoutes from "./routes/checkoutRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import cityRoutes from "./routes/cityRoutes.js";
 import telegramRoutes from "./routes/telegramRoutes.js";
+
 import mobileRoutes from "./routes/mobileRoutes.js";
 import mobileCartRoutes from "./routes/mobileCartRoutes.js";
 import mobileCheckoutRoutes from "./routes/mobileCheckoutRoutes.js";
 import mobileOrderRoutes from "./routes/mobileOrderRoutes.js";
 import mobileSellerOrderRoutes from "./routes/mobileSellerOrderRoutes.js";
 import mobileDeliveryOrderRoutes from "./routes/mobileDeliveryOrderRoutes.js";
+
+import medicineRoutes from "./routes/medicineRoutes.js";
+import medicineCartRoutes from "./routes/medicineCartRoutes.js";
+import medicineOrderRoutes from "./routes/medicineOrderRoutes.js";
+import medicineCheckoutRoutes from "./routes/medicineCheckoutRoutes.js";
+import medicineSellerOrderRoutes from "./routes/medicineSellerOrderRoutes.js";
+import medicineDeliveryOrderRoutes from "./routes/medicineDeliveryOrderRoutes.js";
 
 const app = express();
 
@@ -71,6 +83,7 @@ app.use("/api/seller", sellerRoutes);
 app.use("/api/delivery", deliveryRoutes);
 
 app.use("/api/seller/grocery", groceryProductRoutes);
+app.use("/api/seller/medicine", medicineProductRoutes);
 app.use("/api/groceries", groceriesRoutes);
 
 app.use("/api/seller/mobile", mobileProductRoutes);
@@ -89,6 +102,13 @@ app.use("/api/telegram", telegramRoutes);
 
 app.use("/api/seller/mobile-orders", mobileSellerOrderRoutes);
 app.use("/api/delivery/mobile-orders", mobileDeliveryOrderRoutes);
+
+app.use("/api/medicines", medicineRoutes);
+app.use("/api/medicine-cart", medicineCartRoutes);
+app.use("/api/medicine-orders", medicineOrderRoutes);
+app.use("/api/medicine-checkout", medicineCheckoutRoutes);
+app.use("/api/seller/medicine-orders", medicineSellerOrderRoutes);
+app.use("/api/delivery/medicine-orders", medicineDeliveryOrderRoutes);
 
 // --------------------------------------------------
 // Health Check Route
